@@ -4,7 +4,9 @@ import {parseCode} from './code-analyzer';
 $(document).ready(function () {
     $('#codeSubmissionButton').click(() => {
         let codeToParse = $('#codePlaceholder').val();
-        let parsedCode = parseCode(codeToParse);
+        let table = document.getElementById('myTable');
+        let parsedCode = parseCode(codeToParse, table);
         $('#parsedCode').val(JSON.stringify(parsedCode, null, 2));
+
     });
 });
