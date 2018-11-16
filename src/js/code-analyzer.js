@@ -13,7 +13,8 @@ let expression_to_function = {
     'VariableDeclaration' : compVarDeclarationExp,
     'BlockStatement' : compBlockStatement,
     'FunctionDeclaration' : compFuncDec,
-    'ExpressionStatement' : compExpStatement
+    'ExpressionStatement' : compExpStatement,
+    'UpdateExpression' : compUpdateExp
 };
 
 let input_code;
@@ -23,9 +24,7 @@ const parseCode = (codeToParse, table) => {
     let parsed_code = esprima.parseScript(codeToParse,{loc: true});
     input_code = codeToParse;
     table = generate_parsed_table(parsed_code);
-    return parsed_code;
-    // return table;
-
+    return [parsed_code, table];
 };
 
 function generate_parsed_table(parsed_code) {
@@ -40,6 +39,16 @@ function generate_parsed_table(parsed_code) {
     return table.concat(comp_function(parsed_code));
 }
 
+function compUpdateExp(update_exp){
+    let statement = {
+        'Type' : 'update statement',
+        'Name' : update_exp.argument.name, //ToDO: Which name to use?
+        'Value' : update_exp.operator,
+        'Line' : update_exp.loc
+    };
+
+    return [statement];
+}
 //function for computing program expression (the main object)
 function compProgram(program){
 
@@ -77,14 +86,14 @@ function compReturnExp(return_exp){
 
 function compForExp(for_exp){
     let statements = [];
+    let inner_statement = input_code.split('\n')[for_exp.loc.start.line-1];
+    inner_statement = inner_statement.substring(for_exp.init.loc.start.column, for_exp.update.loc.end.column);
     let record_to_add = {
-        'Condition': generate_code_string(for_exp.test, for_exp.test.loc),
         'Type': 'ForStatement',
-        'Line': for_exp.loc.start.line
+        'Line': for_exp.loc.start.line,
+        'Condition': inner_statement
     };
     statements.push(record_to_add);
-    statements = statements.concat(generate_parsed_table(for_exp.init));
-    statements = statements.concat(generate_parsed_table(for_exp.update));
     statements = statements.concat(generate_parsed_table(for_exp.body));
     return statements;
 }

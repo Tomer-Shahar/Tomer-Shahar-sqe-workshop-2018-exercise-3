@@ -18,13 +18,30 @@
                 width: 80%;
                 height: 95%;
             }
+
+            .markdown-body table td, .markdown-body table th {
+                border: 1px solid #dfe2e5;
+                padding: 6px 13px;
+            }
+
+            .markdown-body table th {
+                font-weight: 600;
+            }
+
+            .markdown-body table tr:nth-child(2n) {
+                background-color: #f6f8fa;
+            }
+            .markdown-body table tr {
+                background-color: #fff;
+                border-top: 1px solid #c6cbd1;
+            }
+
+            table {
+                border-collapse: collapse;
+                border-spacing: 0;
+            }
         </style>
     </head>
-    <style>
-        table, td {
-            border: 1px solid steelblue;
-        }
-    </style>
     <body>
         <table>
             <tr>
@@ -35,7 +52,7 @@
                 </td>
                 <td>
                     <div>
-                        <label>Parsed code here</label>
+                        <label>Output Table</label>
                     </div>
                 </td>
             </tr>
@@ -46,9 +63,15 @@
                     </div>
                 </td>
                 <td>
-                    <div class="textAreaWrapper">
-                        <textarea id="parsedCode" title="Parse code"></textarea>
-                    </div>
+                    <table id="varTable">
+                        <thead>
+                        <th>Line</th>
+                        <th>Type</th>
+                        <th>Name</th>
+                        <th>Condition</th>
+                        <th>Value</th>
+                        </thead>
+                    </table>
                 </td>
             </tr>
             <tr>
@@ -56,12 +79,6 @@
                     <div>
                         <button id="codeSubmissionButton">Parse code</button>
                     </div>
-                </td>
-                <td>
-                    <table id="myTable">
-                        <tr>
-                        </tr>
-                    </table>
                 </td>
             </tr>
         </table>
