@@ -8,7 +8,7 @@
         "start:dev": "webpack --watch",
         "test:watch": "mocha-webpack --watch",
         "test": "mocha-webpack --webpack-config webpack.test.config.js --reporter=json",
-        "coverage": "cross-env NODE_ENV=coverage nyc --reporter=json-summary npm run test",
+        "coverage": "cross-env NODE_ENV=coverage nyc --reporter=html npm run test",
         "lint": "eslint -f json -o ./lint/eslint-report.json src"
     },
     "nyc": {
@@ -21,6 +21,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "cli": "^1.0.1",
         "esprima": "^4.0.1",
         "jquery": "^3.3.1",
         "npm": "^6.4.1"

@@ -136,3 +136,36 @@ it('10  - The generated table is parsing a more complex function correctly', () 
         ])
     );
 });
+
+it('11  - The code analyzer wont crash with expressions that dont have a function', () => {
+    assert.equal(
+        JSON.stringify(parseCode('try {\n' +
+            '    adddlert("Welcome guest!");\n' +
+            '}\n' +
+            'catch(err) {\n' +
+            '    document.getElementById("demo").innerHTML = err.message;\n' +
+            '}')[1]),JSON.stringify([])
+    );
+});
+
+it('11  - The code analyzer wont crash with expressions that dont have a function', () => {
+    assert.equal(
+        JSON.stringify(parseCode('try {\n' +
+            '    adddlert("Welcome guest!");\n' +
+            '}\n' +
+            'catch(err) {\n' +
+            '    document.getElementById("demo").innerHTML = err.message;\n' +
+            '}')[1]),JSON.stringify([])
+    );
+});
+
+it('11  - The code analyzer wont crash with expressions that dont have a function', () => {
+    assert.equal(
+        JSON.stringify(parseCode('try {\n' +
+            '    adddlert("Welcome guest!");\n' +
+            '}\n' +
+            'catch(err) {\n' +
+            '    document.getElementById("demo").innerHTML = err.message;\n' +
+            '}')[1]),JSON.stringify([])
+    );
+});

@@ -27,7 +27,7 @@ const parseCode = (codeToParse) => {
     return [parsed_code, table];
 };
 
-function generate_parsed_table(parsed_code='') {
+function generate_parsed_table(parsed_code) {
     let table = [];
 
     let comp_function = expression_to_function[parsed_code.type];
@@ -52,8 +52,6 @@ function compUpdateExp(update_exp){
 }
 //function for computing program expression (the main object)
 function compProgram(program){
-
-    //return generate_parsed_table(program.body[0]);
 
     let statements = [];
     for(let i = 0; i < program.body.length; i++) {
