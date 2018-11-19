@@ -14,7 +14,8 @@ let expression_to_function = {
     'BlockStatement' : compBlockStatement,
     'FunctionDeclaration' : compFuncDec,
     'ExpressionStatement' : compExpStatement,
-    'UpdateExpression' : compUpdateExp
+    'UpdateExpression' : compUpdateExp,
+    'CallExpression' : compCallExp
 };
 
 let input_code;
@@ -98,7 +99,7 @@ function compForExp(for_exp){
     inner_statement = inner_statement.substring(for_exp.init.loc.start.column, for_exp.update.loc.end.column);
     let record_to_add = {
         'Line': for_exp.loc.start.line,
-        'Type': 'ForStatement',
+        'Type': 'for statement',
         'Name' : '',
         'Condition': inner_statement, //.replace('<', '&lt;').replace('>','&gt;'),
         'Value': ''
@@ -201,6 +202,26 @@ function compFuncDec(func_dec_exp){
     }
 
     return result.concat(generate_parsed_table(func_dec_exp.body));
+}
+
+function compCallExp(func_call_exp){
+    let statement = {'Line' : func_call_exp.loc.start.line, 'Type' : 'call expression', 'Name' : func_call_exp.callee.name, 'Condition' : ''};
+
+    let func_args = '';
+    for(let i=0; i<func_call_exp.arguments.length-1; i++){
+        let val = func_call_exp.arguments[i].name;
+        if(!val)
+            val = func_call_exp.arguments[i].raw;
+        func_args += val + ', ';
+    }
+    let val = func_call_exp.arguments[func_call_exp.arguments.length-1].name;
+    if(val)
+        func_args += val;
+    else
+        func_args += func_call_exp.arguments[func_call_exp.arguments.length-1].raw;
+
+    statement.Value = func_args;
+    return statement;
 }
 
 function compExpStatement(exp_statement){

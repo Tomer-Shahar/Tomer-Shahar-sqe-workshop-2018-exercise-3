@@ -93,7 +93,7 @@ it('8 - The generated table is parsing a for loop correctly', () => {
             { 'Line':1, 'Type': 'function declaration',  'Name': 'series', 'Condition':'',                  'Value': ''},
             { 'Line':1, 'Type': 'variable declaration',  'Name': 'x',      'Condition':'',                  'Value': ''},
             { 'Line':2, 'Type': 'variable declaration',  'Name': 'y',      'Condition':'',                  'Value': '0'},
-            { 'Line':3, 'Type': 'ForStatement',          'Name': '',       'Condition':'let i=0; i < x; i++', 'Value': ''},
+            { 'Line':3, 'Type': 'for statement',         'Name': '',       'Condition':'let i=0; i < x; i++', 'Value': ''},
             { 'Line':4, 'Type': 'assignment expression', 'Name': 'y',      'Condition':'',                  'Value': 'y+i'},
             { 'Line':6, 'Type': 'return statement',      'Name': '',       'Condition':'',                  'Value': 'y'}
         ])
@@ -130,7 +130,7 @@ it('10  - The generated table is parsing a more complex function correctly', () 
             { 'Line':1,  'Type': 'variable declaration',  'Name': 'a',         'Condition':'',                          'Value': ''},
             { 'Line':2,  'Type': 'variable declaration',  'Name': 'result',    'Condition':'',                          'Value': '[]'},
             { 'Line':3,  'Type': 'variable declaration',  'Name': 'i',         'Condition':'',                          'Value': 'null'},
-            { 'Line':4,  'Type': 'ForStatement',          'Name': '',          'Condition':'i = 0; i != a.length; i++', 'Value': ''},
+            { 'Line':4,  'Type': 'for statement',         'Name': '',          'Condition':'i = 0; i != a.length; i++', 'Value': ''},
             { 'Line':5,  'Type': 'assignment expression', 'Name': 'result[i]', 'Condition':'',                          'Value': 'f(a[i])'},
             { 'Line':6,  'Type': 'return statement',      'Name': '',          'Condition':'',                          'Value': 'result'}
         ])
@@ -148,24 +148,53 @@ it('11  - The code analyzer wont crash with expressions that dont have a functio
     );
 });
 
-it('11  - The code analyzer wont crash with expressions that dont have a function', () => {
+it('12  - The generated table is parsing a more complex function correctly', () => {
     assert.equal(
-        JSON.stringify(parseCode('try {\n' +
-            '    adddlert("Welcome guest!");\n' +
-            '}\n' +
-            'catch(err) {\n' +
-            '    document.getElementById("demo").innerHTML = err.message;\n' +
-            '}')[1]),JSON.stringify([])
+        JSON.stringify(parseCode('function myFunc(obj) {\n' +
+                                 '    obj = 5;\n' +
+                                 '}\n' +
+                                 '\n' +
+                                 'var mycar = \'Honda\';\n' +
+                                 'var x, y;\n' +
+                                 'y = x;\n' +
+                                 'myFunc(mycar);\n' +
+                                 '\n' +
+                                 'function goop(A,B){\n' +
+                                 '    while(A<B)\n' +
+                                 '        A++;\n' +
+                                 '}')[1]),JSON.stringify([
+            { 'Line':1,   'Type': 'function declaration',  'Name': 'myFunc', 'Condition':'',    'Value': ''},
+            { 'Line':1,   'Type': 'variable declaration',  'Name': 'obj',    'Condition':'',    'Value': ''},
+            { 'Line':2,   'Type': 'assignment expression', 'Name': 'obj',    'Condition':'',    'Value': '5'},
+            { 'Line':5,   'Type': 'variable declaration',  'Name': 'mycar',  'Condition':'',    'Value': '\'Honda\''},
+            { 'Line':6,   'Type': 'variable declaration',  'Name': 'x',      'Condition':'',    'Value': 'null'},
+            { 'Line':6,   'Type': 'variable declaration',  'Name': 'y',      'Condition':'',    'Value': 'null'},
+            { 'Line':7,   'Type': 'assignment expression', 'Name': 'y',      'Condition':'',    'Value': 'x'},
+            { 'Line':8,   'Type': 'call expression',        'Name': 'myFunc', 'Condition':'',    'Value': 'mycar'},
+            { 'Line':10,  'Type': 'function declaration',  'Name': 'goop',   'Condition':'',    'Value': ''},
+            { 'Line':10,  'Type': 'variable declaration',  'Name': 'A',      'Condition':'',    'Value': ''},
+            { 'Line':10,  'Type': 'variable declaration',  'Name': 'B',      'Condition':'',    'Value': ''},
+            { 'Line':11,  'Type': 'while statement',       'Name': '',       'Condition':'A<B', 'Value': ''},
+            { 'Line':12,  'Type': 'update statement',      'Name': 'A',      'Condition':'',    'Value': '++'}
+        ])
     );
 });
 
-it('11  - The code analyzer wont crash with expressions that dont have a function', () => {
+it('13  - The generated table is parsing a function call with multiple variables', () => {
     assert.equal(
-        JSON.stringify(parseCode('try {\n' +
-            '    adddlert("Welcome guest!");\n' +
-            '}\n' +
-            'catch(err) {\n' +
-            '    document.getElementById("demo").innerHTML = err.message;\n' +
-            '}')[1]),JSON.stringify([])
+        JSON.stringify(parseCode('function foo(X,Y,Z){\n' +
+                                 '   return X+Y+Z;\n' +
+                                 '}\n' +
+                                 '\n' +
+                                 'let a;\n' +
+                                 'foo(a,2,3);')[1]),JSON.stringify([
+            { 'Line':1, 'Type': 'function declaration', 'Name': 'foo', 'Condition':'',    'Value': ''},
+            { 'Line':1, 'Type': 'variable declaration', 'Name': 'X',   'Condition':'',    'Value': ''},
+            { 'Line':1, 'Type': 'variable declaration', 'Name': 'Y',   'Condition':'',    'Value': ''},
+            { 'Line':1, 'Type': 'variable declaration', 'Name': 'Z',   'Condition':'',    'Value': ''},
+            { 'Line':2, 'Type': 'return statement',     'Name': '',    'Condition':'',    'Value': 'X+Y+Z'},
+            { 'Line':5, 'Type': 'variable declaration', 'Name': 'a',   'Condition':'',    'Value': 'null'},
+            { 'Line':6, 'Type': 'call expression',      'Name': 'foo', 'Condition':'',    'Value': 'a, 2, 3'}
+        ])
     );
 });

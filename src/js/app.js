@@ -23,7 +23,7 @@ function generate_markup(code_row) {
     let line = code_row.Line;
     let type = code_row.Type;
     let name = code_row.Name;
-    let condition = code_row.Condition;
+    let condition = code_row.Condition.replace('<', '&lt;').replace('>','&gt;');
     let value = code_row.Value;
 
     if(!condition)
@@ -31,5 +31,5 @@ function generate_markup(code_row) {
     if(!value)
         value = '';
     return '<tr>' + '<td>' + line + '</td>' + '<td>' + type + '</td>' + '<td>' + name + '</td>' +
-        '<td>' + condition + '</td>' + '<td>' + value + '</td>' + '</tr>'.replace('<', '&lt;').replace('>','&gt;');
+        '<td>' + condition + '</td>' + '<td>' + value + '</td>' + '</tr>';
 }
