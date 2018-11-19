@@ -150,32 +150,16 @@ it('11  - The code analyzer wont crash with expressions that dont have a functio
 
 it('12  - The generated table is parsing a more complex function correctly', () => {
     assert.equal(
-        JSON.stringify(parseCode('function myFunc(obj) {\n' +
-                                 '    obj = 5;\n' +
-                                 '}\n' +
-                                 '\n' +
-                                 'var mycar = \'Honda\';\n' +
-                                 'var x, y;\n' +
-                                 'y = x;\n' +
-                                 'myFunc(mycar);\n' +
-                                 '\n' +
-                                 'function goop(A,B){\n' +
-                                 '    while(A<B)\n' +
-                                 '        A++;\n' +
-                                 '}')[1]),JSON.stringify([
-            { 'Line':1,   'Type': 'function declaration',  'Name': 'myFunc', 'Condition':'',    'Value': ''},
-            { 'Line':1,   'Type': 'variable declaration',  'Name': 'obj',    'Condition':'',    'Value': ''},
-            { 'Line':2,   'Type': 'assignment expression', 'Name': 'obj',    'Condition':'',    'Value': '5'},
-            { 'Line':5,   'Type': 'variable declaration',  'Name': 'mycar',  'Condition':'',    'Value': '\'Honda\''},
-            { 'Line':6,   'Type': 'variable declaration',  'Name': 'x',      'Condition':'',    'Value': 'null'},
-            { 'Line':6,   'Type': 'variable declaration',  'Name': 'y',      'Condition':'',    'Value': 'null'},
-            { 'Line':7,   'Type': 'assignment expression', 'Name': 'y',      'Condition':'',    'Value': 'x'},
-            { 'Line':8,   'Type': 'call expression',        'Name': 'myFunc', 'Condition':'',    'Value': 'mycar'},
-            { 'Line':10,  'Type': 'function declaration',  'Name': 'goop',   'Condition':'',    'Value': ''},
-            { 'Line':10,  'Type': 'variable declaration',  'Name': 'A',      'Condition':'',    'Value': ''},
-            { 'Line':10,  'Type': 'variable declaration',  'Name': 'B',      'Condition':'',    'Value': ''},
-            { 'Line':11,  'Type': 'while statement',       'Name': '',       'Condition':'A<B', 'Value': ''},
-            { 'Line':12,  'Type': 'update statement',      'Name': 'A',      'Condition':'',    'Value': '++'}
+        JSON.stringify(parseCode('function myFunc(obj) {\n' +  '    obj = 5;\n' +  '}\n' +  '\n' + 'var mycar = \'Honda\';\n' +
+                                 'var x, y;\n' + 'y = x;\n' +
+                                 'myFunc(mycar);\n' + '\n' +
+                                 'function goop(A,B){\n' +  '    while(A<B)\n' + '        A++;\n' + '}')[1]),JSON.stringify([
+            { 'Line':1,   'Type': 'function declaration',  'Name': 'myFunc', 'Condition':'',    'Value': ''}, { 'Line':1,   'Type': 'variable declaration',  'Name': 'obj',    'Condition':'',    'Value': ''},{ 'Line':2,   'Type': 'assignment expression', 'Name': 'obj',    'Condition':'',    'Value': '5'},
+            { 'Line':5,   'Type': 'variable declaration',  'Name': 'mycar',  'Condition':'',    'Value': '\'Honda\''}, { 'Line':6,   'Type': 'variable declaration',  'Name': 'x',      'Condition':'',    'Value': 'null'},
+            { 'Line':6,   'Type': 'variable declaration',  'Name': 'y',      'Condition':'',    'Value': 'null'},{ 'Line':7,   'Type': 'assignment expression', 'Name': 'y',      'Condition':'',    'Value': 'x'},
+            { 'Line':8,   'Type': 'call expression',        'Name': 'myFunc', 'Condition':'',    'Value': 'mycar'},{ 'Line':10,  'Type': 'function declaration',  'Name': 'goop',   'Condition':'',    'Value': ''},
+            { 'Line':10,  'Type': 'variable declaration',  'Name': 'A',      'Condition':'',    'Value': ''},{ 'Line':10,  'Type': 'variable declaration',  'Name': 'B',      'Condition':'',    'Value': ''},
+            { 'Line':11,  'Type': 'while statement',       'Name': '',       'Condition':'A<B', 'Value': ''},{ 'Line':12,  'Type': 'update statement',      'Name': 'A',      'Condition':'',    'Value': '++'}
         ])
     );
 });
