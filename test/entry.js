@@ -1,1 +1,1 @@
-import './code-analyzer.test';
+import './function-parser.test';

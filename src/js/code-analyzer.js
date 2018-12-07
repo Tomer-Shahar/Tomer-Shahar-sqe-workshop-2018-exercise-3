@@ -233,4 +233,4 @@ function generate_code_string(location){
     return rows[location.start.line-1].substring(location.start.column, location.end.column);
 }
 
-export {parseCode};
+export {parseCode, generate_parsed_table};
