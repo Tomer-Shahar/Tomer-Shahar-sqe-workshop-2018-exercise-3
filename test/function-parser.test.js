@@ -28,13 +28,14 @@ it('4 - extract even harder input values correctly', () => {
 });
 
 it('5 - extract global arguments', () => {
-    let input_func = "let g1 = 5\n" +
-                     "let g2,g3\n" +
-                     "function foo(x, y, z){}";
+    let input_func = "let g1 = 5;\n" +
+                     "let g2,g3;\n" +
+                     "function foo(x, y, z){}\n" +
+                     "g2 = 1;";
     let code_table = parseCode(input_func);
     assert.equal( JSON.stringify(funcParser.extract_global_arguments(code_table)),
         JSON.stringify({"g1" : "5",
-                        "g2" : "null",
+                        "g2" : "1",
                         "g3" : "null"})
     );
 });
@@ -44,7 +45,7 @@ it('6 - extract local arguments', () => {
         "let g2,g3\n" +
         "function foo(x, y, z){\n" +
         "let a;\n" +
-        "let b = a + x)\n" +
+        "let b = a + x\n" +
         "if(a<b){a++}}";
     let code_table = parseCode(input_func);
     assert.equal( JSON.stringify(funcParser.extract_local_arguments(code_table)),
