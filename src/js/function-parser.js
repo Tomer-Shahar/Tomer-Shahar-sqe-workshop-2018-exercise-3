@@ -12,13 +12,17 @@ let input_args;
 let input_func;
 
 const analyzed_code = (code_table, user_func, input_argument_values) => {
-    input_func = "let g1 = 5;\n" +
+    input_func = user_func;
+
+    input_func =
+        "let g1 = 5;\n" +
         "let g2,g3;\n" +
         "g3 = 7 + g2 * 8;\n" +
         "function foo(x, y, z){\n" +
         "    let a = x + 1;\n" +
         "    let b = a + y;\n" +
         "    let c = 0;\n" +
+        "    g1 = g1 + x;\n" +
         "    if (b < z) {\n" +
         "        c = c + 5;\n" +
         "        return x + y + z + c;\n" +
@@ -31,12 +35,13 @@ const analyzed_code = (code_table, user_func, input_argument_values) => {
         "    }\n" +
         "}\n" +
         "let g4 = 10";
-    input_argument_values = '1,"2",3';
 
-    input_func = user_func
+    input_argument_values = '1, 2, 3';
     code_table = parseCode(input_func)[1];
     input_args = extract_arguments(input_argument_values);
-    let parsed_func = symbol_substitution(code_table);
+    global_args = extract_global_arguments();
+
+    let parsed_func = symbol_substitution();
     parsed_func = color_function(parsed_func);
     return parsed_func;
 };
@@ -46,8 +51,8 @@ function color_function(parsed_func, func_args) {
 }
 
 function translate_condition(Condition) {
-    let exp = esprima.parse(Condition)
-
+    let exp = esprima.parse(Condition);
+    return null;
 }
 
 function symbol_substitution(){
@@ -55,24 +60,23 @@ function symbol_substitution(){
     //arguments and the function arguments (including global arguments..)
 
     let function_args = extract_arg_names(input_func);
-    let global_args = extract_global_arguments(input_func);
-    let local_arguments = extract_local_arguments(input_func, global_args, function_args);
-
-    input_func = input_func.split('\n');
+    let local_arguments = extract_local_arguments(global_args, function_args);
     let parsedCode = esprima.parse(input_func, {loc: true}).body;
-    let function_table = get_function_declaration(parsedCode);
-    for (let i = 0; i < function_table.length; i++) {
-        if(function_table[i].Type === 'variable declaration'){
-            function_table.splice(i, 1); //Remove variable declarations
-            i--;
+    //let function_table = get_function_declaration(parsedCode);
+    input_func = input_func.split('\n');
+    let output = "";
+    for(let i = 0; i < code_table.length; i++) {
+        if(code_table[i].Type === 'variable declaration'){
+            if(local_arguments[code_table[i]]){
+            }
         }
-        else if(function_table[i].Type === 'else if statement'){
-            function_table[i].Condition = translate_condition(function_table[i].Condition, );
+        else if(code_table[i].Type === 'else if statement'){
+            code_table[i].Condition = translate_condition(code_table[i].Condition, );
         }
     }
 }
 
-function extract_local_arguments(input_func, global_args, function_args){
+function extract_local_arguments(global_args, function_args){
     // Returns a dictionary mapping between the local arguments and their values after substitution.
     let local_args = {};
     let parsedCode = esprima.parse(input_func, {loc: true}).body;
@@ -110,7 +114,7 @@ function substitute_value(arg_value, local_args, global_args) {
     return arg_value;
 }
 
-function generate_assignment_array(expression) {
+function generate_assignment_array(expression){
     //Generates an array containing the different values and operations in the given expression
 
     let value_arr = [];
@@ -139,7 +143,7 @@ function extract_assignment(expression) {
     }
 }
 
-function extract_arguments(argument_string, input_func){
+function extract_arguments(argument_string){
 // Function that extracts the arguments from the argument text box
 // returns each arg name and their input value.
 
@@ -178,7 +182,7 @@ function get_global_vars_declarations(input_func) {
     return global_vars;
 }
 
-function extract_global_arguments(input_func) {
+function extract_global_arguments() {
     let i = 0;
     let global_args = {};
     let global_var_decs = get_global_vars_declarations(input_func);
