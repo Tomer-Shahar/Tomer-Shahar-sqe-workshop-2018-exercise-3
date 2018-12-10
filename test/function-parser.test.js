@@ -48,7 +48,7 @@ it('6 - extract local arguments', () => {
         "let b = a + x\n" +
         "if(a<b){a++}}";
     let code_table = parseCode(input_func);
-    assert.equal( JSON.stringify(funcParser.extract_local_arguments(code_table)),
+    assert.equal( JSON.stringify(funcParser.create_local_arg_dict(code_table)),
         JSON.stringify({"a" : "null",
             "b" : "a + x"})
     );

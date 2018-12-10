@@ -4,6 +4,7 @@
  */
 
 import * as esprima from 'esprima';
+import * as substitutor from '../src/js/symbol-substitution';
 import {generate_parsed_table, parseCode} from "./code-analyzer";
 
 let global_args;
@@ -55,40 +56,24 @@ function translate_condition(Condition) {
     return null;
 }
 
-function symbol_substitution(){
-    //Receives the input func, code table and creates a map mapping between the local
-    //arguments and the function arguments (including global arguments..)
-
-    let function_args = extract_arg_names(input_func);
-    let local_arguments = extract_local_arguments(global_args, function_args);
-    let parsedCode = esprima.parse(input_func, {loc: true}).body;
-    //let function_table = get_function_declaration(parsedCode);
-    input_func = input_func.split('\n');
-    let output = "";
-    for(let i = 0; i < code_table.length; i++) {
-        if(code_table[i].Type === 'variable declaration'){
-            if(local_arguments[code_table[i]]){
-            }
-        }
-        else if(code_table[i].Type === 'else if statement'){
-            code_table[i].Condition = translate_condition(code_table[i].Condition, );
-        }
-    }
-}
-
-function extract_local_arguments(global_args, function_args){
+function create_local_arg_dict(){
     // Returns a dictionary mapping between the local arguments and their values after substitution.
+    // the key will be the variable name, and the value is an array containing json object with the value AND line.
     let local_args = {};
     let parsedCode = esprima.parse(input_func, {loc: true}).body;
     let function_table = get_function_declaration(parsedCode);
 
     for (let i = 0; i < function_table.length; i++) {
-        if(function_table[i].Type === 'variable declaration'){
-            if(!global_args[function_table[i].Name] && !function_args.includes(function_table[i].Name)){
-                let expression = "let " + function_table[i].Name + " = " + function_table[i].Value;
-                let arg_value = generate_assignment_array(expression);
-                arg_value = substitute_value(arg_value, local_args, global_args);
-                local_args[function_table[i].Name] = {value: arg_value, location: function_table[i].Line} ;
+        if(function_table[i].Type === 'variable declaration' || function_table[i].Type === 'assignment expression'){
+            if(!global_args[function_table[i].Name] && !input_args[function_table[i].Name]){
+                let arg_value = generate_assignment_array(function_table[i]);
+                //arg_value = substitute_value(arg_value, local_args, global_args);
+                if(local_args[function_table[i].Name]){
+                    local_args[function_table[i].Name].push({value: arg_value, location: function_table[i].Line})
+                }
+                else{
+                    local_args[function_table[i].Name] = [{value: arg_value, location: function_table[i].Line}] ;
+                }
             }
         }
     }
@@ -99,24 +84,24 @@ function substitute_value(arg_value, local_args, global_args) {
     // Receives a value such as: a = [x, +, 1] , b = [y, +, a]  and returns b = [y, +, x, +, 1]
     for (let i = 0; i < arg_value.length; i++) {
         if(global_args[arg_value[i]]){
-            let mid = global_args[arg_value[i]].value; // x + 1
-            let first = arg_value.splice(0, i); // [y, +] , arg_value = [a]
-            arg_value = arg_value.splice(1, arg_value.length-1); // []
+            let mid = global_args[arg_value[i]].value;
+            let first = arg_value.splice(0, i);
+            arg_value = arg_value.splice(1, arg_value.length-1);
             arg_value = first.concat(mid).concat(arg_value);
         }
         else if(local_args[arg_value[i]]){ // The current symbol in the arg_value is a local argument
-            let mid = local_args[arg_value[i]].value; // x + 1
-            let first = arg_value.splice(0, i); // [y, +] , arg_value = [a]
-            arg_value = arg_value.splice(1, arg_value.length-1); // []
+            let mid = local_args[arg_value[i]].value;
+            let first = arg_value.splice(0, i);
+            arg_value = arg_value.splice(1, arg_value.length-1);
             arg_value = first.concat(mid).concat(arg_value);
         }
     }
     return arg_value;
 }
 
-function generate_assignment_array(expression){
+function generate_assignment_array(row){
     //Generates an array containing the different values and operations in the given expression
-
+    let expression = "let " + row.Name + " = " + row.Value;
     let value_arr = [];
     let exp = esprima.parse(expression).body[0];
     return value_arr.concat(extract_assignment(exp))
@@ -263,4 +248,4 @@ function extract_arg_values(args){
 }
 
 export{analyzed_code, extract_arg_values, extract_arguments, extract_arg_names, extract_arg_types,
-extract_global_arguments, color_function, extract_local_arguments, symbol_substitution}
+extract_global_arguments, color_function, create_local_arg_dict, symbol_substitution}
