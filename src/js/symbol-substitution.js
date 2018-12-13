@@ -1,233 +1,191 @@
-import * as funcParser from '../src/js/function-parser';
 import * as esprima from 'esprima';
+import * as parser from './function-parser'
 
 // This json object will map between the different expressions of the original code.
 // Each expression in the original code has a different type and needs a specific parse method.
 
 let expression_to_function = {
+    'Program' : compProgram,
+    'FunctionDeclaration' : compFuncDec,
+    'BlockStatement' : compBlockStatement,
+    'VariableDeclaration' : compVarDeclarationExp,
+    'AssignmentExpression' : compAssignmentExp,
     'IfStatement' : compIfExp,
     'ReturnStatement' : compReturnExp,
-    'Program' : compProgram,
     'ForStatement' : compForExp,
     'WhileStatement' : compWhileExp,
-    'AssignmentExpression' : compAssignmentExp,
-    'VariableDeclaration' : compVarDeclarationExp,
-    'BlockStatement' : compBlockStatement,
-    'FunctionDeclaration' : compFuncDec,
     'ExpressionStatement' : compExpStatement,
-    'UpdateExpression' : compUpdateExp,
-    'CallExpression' : compCallExp
 };
 
 let input_code;
+let input_args;
+let global_args;
+let local_arg_dict;
+let local_arg_indices = {};
+let args_to_decrement = new Set();
 
-
-function perform_substitution(input_args, global_args, local_args, input_func){
+function perform_substitution(user_input_args, global_arguments, local_args, input_func){
     input_code = input_func;
-    let parsed_code = esprima.parseScript(input_func,{loc: true});
-    let substituted_code = generate_parsed_table(parsed_code);
-    return [parsed_code, table];
+    input_args = user_input_args;
+    global_args = global_arguments;
+    local_arg_dict = local_args;
+    let parsed_code = esprima.parse(input_func, {loc: true});
+    for (const [key, value] of Object.entries(local_arg_dict)) {
+        local_arg_indices[key] = 0;
+    }
+    //let function_table = parser.get_function_declaration(parsed_code)
+    //let sub_code = get_substituted_code(function_table);
+    let sub_code = get_substituted_code(parsed_code);
+    return sub_code;
 }
 
+function make_space(n){
+    let space = "";
+    for (let i = 0; i < n; i++) {
+        space += " "
+    }
+    return space;
+}
 
-function generate_parsed_table(parsed_code) {
-    let table = [];
+function get_substituted_code(parsed_code, in_condition_block=false) {
 
     let comp_function = expression_to_function[parsed_code.type];
-
-    if(!comp_function){ // The type doesn't exist
-        return table;
-    }
-
-    return table.concat(comp_function(parsed_code));
+    return "" + (comp_function(parsed_code, in_condition_block));
 }
 
-function compUpdateExp(update_exp){
-    let statement = {
-        'Line' : update_exp.loc.start.line,
-        'Type' : 'update statement',
-        'Name' : update_exp.argument.name,
-        'Condition' : '',
-        'Value' : update_exp.operator
-    };
-
-    return [statement];
-}
 //function for computing program expression (the main object)
-function compProgram(program){
+function compProgram(program, in_condition_block=false){
 
-    let statements = [];
+    let result = "";
     for(let i = 0; i < program.body.length; i++) {
         let exp = program.body[i];
-
-        statements = statements.concat(generate_parsed_table(exp));
-    }
-    return statements;
-}
-
-function compIfExp(if_exp){
-    let statements = [];
-    let record_to_add = {
-        'Line': if_exp.loc.start.line,
-        'Type': 'else if statement',
-        'Name' : '',
-        'Condition': generate_code_string(if_exp.test.loc),
-        'Value': ''
-    };
-    statements.push(record_to_add);
-    statements = statements.concat(generate_parsed_table(if_exp.consequent));
-    if (if_exp.alternate == null)
-        return statements;
-    if (if_exp.alternate.type==='IfStatement')
-        return statements.concat(compIfExp(if_exp.alternate));
-    else
-        return statements.concat(generate_parsed_table(if_exp.alternate));
-}
-
-function compReturnExp(return_exp){
-    let record_to_add = {
-        'Line': return_exp.loc.start.line,
-        'Type': 'return statement',
-        'Name': '',
-        'Condition': '',
-        'Value': generate_code_string(return_exp.argument.loc)
-    };
-    return [record_to_add];
-}
-
-function compForExp(for_exp){
-    let statements = [];
-    let inner_statement = input_code.split('\n')[for_exp.loc.start.line-1];
-    inner_statement = inner_statement.substring(for_exp.init.loc.start.column, for_exp.update.loc.end.column);
-    let record_to_add = {
-        'Line': for_exp.loc.start.line,
-        'Type': 'for statement',
-        'Name' : '',
-        'Condition': inner_statement, //.replace('<', '&lt;').replace('>','&gt;'),
-        'Value': ''
-    };
-    statements.push(record_to_add);
-    statements = statements.concat(generate_parsed_table(for_exp.body));
-    return statements;
-}
-
-function compWhileExp(while_exp){
-    let record_to_add = {
-        'Line': while_exp.loc.start.line,
-        'Type': 'while statement',
-        'Name': '',
-        'Condition': generate_code_string(while_exp.test.loc),
-        'Value': ''
-    };
-
-    return [record_to_add].concat(generate_parsed_table(while_exp.body));
-}
-
-function compAssignmentExp(assignment_exp){
-
-    let record_to_add = {
-        'Line': assignment_exp.left.loc.start.line,
-        'Type': 'assignment expression',
-        'Name': generate_code_string(assignment_exp.left.loc),//assignment_exp.left.name,
-        'Condition': '',
-        'Value': generate_code_string(assignment_exp.right.loc)
-    };
-
-    return [record_to_add];
-}
-
-// This function is called for expressions such as let x,y,z;
-// For each variable we call compVarDeclaratorExp
-function compVarDeclarationExp(var_dec_exp){
-    let result = [];
-    for(let i = 0; i < var_dec_exp.declarations.length; i++) {
-        let v_code = var_dec_exp.declarations[i];
-
-        result = result.concat(compVarDeclaratorExp(v_code));
+        result = result + get_substituted_code(exp, in_condition_block);
     }
     return result;
 }
 
-function compVarDeclaratorExp(var_dec_exp){
+function substitute_expression(expression) {
+    // Receives a condition such as b < z and translated it into x + y + 1 < z (or w/e)
+    //Works for if and while
+    expression = esprima.parse(expression).body[0].expression;
+    expression = parser.extract_assignment(expression); //An array [b, <, z]
+    let result = "";
 
-    let declarator_statement = {
-        'Line': var_dec_exp.loc.start.line,
-        'Type': 'variable declaration',
-        'Name': var_dec_exp.id.name,
-        'Condition': '',
-        'Value': 'null'
-    };
-    if (var_dec_exp.init != null){
-        declarator_statement.Value = generate_code_string(var_dec_exp.init.loc);
+    for (let i = 0; i < expression.length; i++){
+
+        if(expression[i] in global_args){
+            result += global_args[expression[i]].value.join(' ');
+        }
+        else if(expression[i] in local_arg_dict){
+            let index = local_arg_indices[expression[i]];
+            let arg_value = substitute_expression(local_arg_dict[expression[i]][index].value.join(' '));
+            result += arg_value;
+        }
+        else{
+            if((i > 0 && expression[i-1] === '(') || (expression[i] === ')'))
+                result += expression[i]; //No space after '(' and no space before ')'
+            else
+                result += ' ' + expression[i]
+        }
     }
-    return [declarator_statement];
+
+    return result;
 }
 
-function compBlockStatement(block_exp){
+function compIfExp(if_exp, in_condition_block=false){
 
-    let statements = [];
+    let condition = substitute_expression(generate_code_string(if_exp.test.loc));
+    let result = make_space(if_exp.loc.start.column) + "if(" + condition + ") {\n";
+    result = result + get_substituted_code(if_exp.consequent, true);
+
+    if (if_exp.alternate == null) //No else or else-if (code just continues)
+        return result;
+    if (if_exp.alternate.type==='IfStatement') // else_if
+        return result + compElseIfExp(if_exp.alternate);
+    else //else statement.
+        return result + "} else{\n" + get_substituted_code(if_exp.alternate, true);
+}
+
+function compElseIfExp(else_if_exp, in_condition_block=false){
+
+    let condition = substitute_expression(generate_code_string(else_if_exp.test.loc));
+    let result = make_space(else_if_exp.loc.start.column-7) + "} else if(" + condition + ") {\n";
+    result = result + get_substituted_code(else_if_exp.consequent, true);
+
+    if (else_if_exp.alternate == null)
+        return result;
+    if (else_if_exp.alternate.type==='IfStatement')
+        return result + compElseIfExp(else_if_exp.alternate);
+    else
+        return result + make_space(else_if_exp.loc.start.column-7) + "} else {\n" +
+            get_substituted_code(else_if_exp.alternate, true) + make_space(else_if_exp.loc.start.column-7) + "}\n";
+}
+
+function compReturnExp(return_exp, in_condition_block=false){
+    return make_space(return_exp.loc.start.column) + "return " + substitute_expression(generate_code_string(return_exp.argument.loc)) + ";\n";
+}
+
+function compForExp(for_exp, in_condition_block=false){
+    let inner_statement = input_code.split('\n')[for_exp.loc.start.line-1];
+    inner_statement = inner_statement.substring(for_exp.init.loc.start.column, for_exp.update.loc.end.column);
+
+    let result = make_space(for_exp.loc.start.column) + "for(" + inner_statement + "){\n";
+    result = result + get_substituted_code(for_exp.body);
+    return result;
+}
+
+function compWhileExp(while_exp, in_condition_block=false){
+    let result = make_space(while_exp.loc.start.column) + "while(" + generate_code_string(while_exp.test.loc) + "){\n";
+
+    return result + get_substituted_code(while_exp.body);
+}
+
+function compAssignmentExp(assignment_exp, in_condition_block=false){
+    if(in_condition_block){
+        local_arg_indices[assignment_exp.name] += 1;
+        args_to_decrement.add(assignment_exp.name);
+    }
+    return "";
+}
+
+function compVarDeclarationExp(var_dec_exp, in_condition_block=false){
+    if(in_condition_block){
+        local_arg_indices[var_dec_exp.name] += 1;
+        args_to_decrement.add(var_dec_exp.name);
+    }
+    return "";
+}
+
+function compBlockStatement(block_exp, in_condition_block=false){
+
+    let result = "";
 
     for(let i=0; i<block_exp.body.length; i++){
         let code = block_exp.body[i];
 
-        statements = statements.concat(generate_parsed_table(code));
+        result = result + get_substituted_code(code, in_condition_block);
     }
 
-    return statements;
+    return result;
 }
 
-function compParamExp(param) {
-    return {
-        'Line': param.loc.start.line,
-        'Type': 'variable declaration',
-        'Name': param.name,
-        'Condition': '',
-        'Value': ''
-    };
+function create_input_arg_string() {
+    let result = [];
+    for (const [key, value] of Object.entries(input_args)) {
+        result.push(key);
+    }
+    return result.join(", ");
 }
 
 function compFuncDec(func_dec_exp){
 
-    let result = [];
-    let declaration = {
-        'Line': func_dec_exp.id.loc.start.line,
-        'Type': 'function declaration',
-        'Name': func_dec_exp.id.name,
-        'Condition': '',
-        'Value': ''
-    };
-    result.push(declaration);
-
-    for(let i = 0; i < func_dec_exp.params.length; i++) {
-        let param = func_dec_exp.params[i];
-        result.push(compParamExp(param));
-    }
-
-    return result.concat(generate_parsed_table(func_dec_exp.body));
+    let input_string = create_input_arg_string();
+    let func_dec_string = "function " + func_dec_exp.id.name + "(" + input_string + "){\n";
+    return func_dec_string + get_substituted_code(func_dec_exp.body) + "}";
 }
 
-function compCallExp(func_call_exp){
-    let statement = {'Line' : func_call_exp.loc.start.line, 'Type' : 'call expression', 'Name' : func_call_exp.callee.name, 'Condition' : ''};
-
-    let func_args = '';
-    for(let i=0; i<func_call_exp.arguments.length-1; i++){
-        let val = func_call_exp.arguments[i].name;
-        if(!val)
-            val = func_call_exp.arguments[i].raw;
-        func_args += val + ', ';
-    }
-    let val = func_call_exp.arguments[func_call_exp.arguments.length-1].name;
-    if(val)
-        func_args += val;
-    else
-        func_args += func_call_exp.arguments[func_call_exp.arguments.length-1].raw;
-
-    statement.Value = func_args;
-    return statement;
-}
-
-function compExpStatement(exp_statement){
-    return generate_parsed_table(exp_statement.expression);
+function compExpStatement(exp_statement, in_condition_block=false){
+    return get_substituted_code(exp_statement.expression, in_condition_block);
 }
 
 function generate_code_string(location){
@@ -235,4 +193,4 @@ function generate_code_string(location){
     return rows[location.start.line-1].substring(location.start.column, location.end.column);
 }
 
-export {generate_parsed_table, perform_substitution};
+export {get_substituted_code, perform_substitution};

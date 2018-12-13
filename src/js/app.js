@@ -11,5 +11,6 @@ $(document).ready(function () {
         let code_table = res[1];
 
         let parsed_func = analyzed_code(code_table, input_func, user_input_arguments)
+        $('#codeOutput').text(parsed_func);
     });
 });
