@@ -14,6 +14,8 @@
             textarea {
                 min-width: 22rem;
                 min-height: 30rem;
+                font-family: monospace;
+                font-size: 16px;
                 /*resize: none; */
             }
 
@@ -24,6 +26,28 @@
 
             .markdown-body table th {
                 font-weight: 600;
+            }
+
+            .false{
+                background: red;
+                color: white;
+            }
+
+            .true{
+                background: green;
+                color: white;
+            }
+
+            div{
+                white-space: pre;
+            }
+
+            #codeOutput{
+                background: aliceblue;
+                width: fit-content;
+                margin: auto;
+                font-family: monospace;
+                font-size: 16px;
             }
         </style>
     </head>
@@ -37,30 +61,23 @@
                 </td>
                 <td>
                     <div>
-                        <label>Enter Arguments Here</label>
-                    </div>
-                </td>
-                <td>
-                    <div>
-                        <label>Output Function</label>
+                        <label>Output</label>
                     </div>
                 </td>
             </tr>
             <tr>
                 <td>
                     <div>
-                        <textarea id="codePlaceholder" title="Enter code here "></textarea>
+                        <label for="codePlaceholder"></label><textarea id="codePlaceholder" title="Enter code here "></textarea>
                     </div>
                 </td>
                 <td>
                     <div>
-                        <textarea id="inputArguments" title="input args"></textarea>
+                        <label for="inputArguments">Insert desired arguments (e.g 1, 2, false)</label></br>
+                        <label for="inputArguments"><b>(An empty field evaluates to a 0 for each argument)</b></label></br>
+                        <input id="inputArguments" title="input args">
                     </div>
-                </td>
-                <td>
-                    <div>
-                        <textarea id="codeOutput" title="code output"></textarea>
-                    </div>
+                    <div id="codeOutput" title="code output"></div>
                 </td>
             </tr>
             <tr>
