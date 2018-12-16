@@ -15,7 +15,7 @@ let expression_to_function = {
     'FunctionDeclaration' : compFuncDec,
     'ExpressionStatement' : compExpStatement,
     'UpdateExpression' : compUpdateExp,
-    'CallExpression' : compCallExp
+    //'CallExpression' : compCallExp
 };
 
 let input_code;
@@ -32,10 +32,6 @@ function generate_parsed_table(parsed_code) {
     let table = [];
 
     let comp_function = expression_to_function[parsed_code.type];
-
-    if(!comp_function){ // The type doesn't exist
-        return table;
-    }
 
     return table.concat(comp_function(parsed_code));
 }
@@ -204,6 +200,7 @@ function compFuncDec(func_dec_exp){
     return result.concat(generate_parsed_table(func_dec_exp.body));
 }
 
+/*
 function compCallExp(func_call_exp){
     let statement = {'Line' : func_call_exp.loc.start.line, 'Type' : 'call expression', 'Name' : func_call_exp.callee.name, 'Condition' : ''};
 
@@ -222,7 +219,7 @@ function compCallExp(func_call_exp){
 
     statement.Value = func_args;
     return statement;
-}
+} */
 
 function compExpStatement(exp_statement){
     return generate_parsed_table(exp_statement.expression);

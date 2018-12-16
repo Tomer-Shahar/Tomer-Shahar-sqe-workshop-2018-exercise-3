@@ -14,6 +14,7 @@ let expression_to_function = {
     'ForStatement' : compForExp,
     'WhileStatement' : compWhileExp,
     'ExpressionStatement' : compExpStatement,
+    'UpdateExpression' : compUpdateExpression
 };
 
 let input_code;
@@ -22,91 +23,103 @@ let global_args;
 let local_arg_dict;
 let local_arg_indices = {};
 let args_to_decrement = [];
-let code_table;
 
-function perform_substitution(user_input_args, global_arguments, local_args, input_func, codeTable){
+function perform_substitution(user_input_args, global_arguments, local_args, input_func){
     input_code = input_func;
     input_args = user_input_args;
     //global_args = parse_global_args(global_arguments);
     global_args = global_arguments;
     local_arg_dict = local_args;
-    code_table = codeTable;
     let parsed_code = esprima.parse(input_func, {loc: true});
-    for (const [key, value] of Object.entries(local_arg_dict)) {
+    for (const [key] of Object.entries(local_arg_dict)) {
         local_arg_indices[key] = 0;
     }
 
     return get_substituted_code(parsed_code);
 }
 
-function compIfExp(if_exp, in_condition_block=false){
+function clear_memory(){
+    input_code = '';
+    input_args = {};
+    global_args = {};
+    local_arg_dict = {};
+    local_arg_indices = {};
+    args_to_decrement = [];
+}
 
-    //let condition = sub_exp_to_str(generate_code_string(if_exp.test.loc));
-    let test_str = generate_code_string(if_exp.test.loc); // "b + y + 0 < (z) * (a)"
-    let condition = sub_equation(test_str);
-    let result = "if (" + condition + ") {";
+function compIfExp(if_exp){
+
+    let condition = sub_equation(generate_code_string(if_exp.test.loc));
+    let result = 'if (' + condition + ') {';
     let space = make_space(if_exp.loc.start.column);
-    result = "<div>" + space +  evaluate_expression(test_str, result) + "</div>";
+    result = '<div>' + space +  evaluate_expression(condition, result) + '</div>';
     result = result + get_substituted_code(if_exp.consequent, true);
     clear_inner_block_args();
-
     if (if_exp.alternate == null) //No else or else-if (code just continues)
         return result + '<div>' + make_space(if_exp.loc.start.column) + '}</div>';
     if (if_exp.alternate.type==='IfStatement') // else_if
         return result + compElseIfExp(if_exp.alternate);
     else{ //else
-        result += "<div>" + make_space(if_exp.loc.start.column) + "} else { </div>";
+        result += '<div>' + make_space(if_exp.loc.start.column) + '} else { </div>';
         result += get_substituted_code(if_exp.alternate, true);//Gets the <div> by itself
-        result += "<div>" + make_space(if_exp.loc.start.column) + "}</div>";
+        result += '<div>' + make_space(if_exp.loc.start.column) + '}</div>';
         clear_inner_block_args();
         return result;
     }
 }
 
-function compElseIfExp(else_if_exp, in_condition_block=false){
+function compElseIfExp(else_if_exp){
 
-    //let condition = sub_exp_to_str(generate_code_string(else_if_exp.test.loc));
-    let condition = generate_code_string(else_if_exp.test.loc); // "b + y + 0 < (z) * (a)"
-    condition = sub_equation(condition);
-    let result = "} else if (" + condition + ") {";
-    let space = make_space(else_if_exp.loc.start.column-7);
-    result = "<div>" + space + evaluate_expression(condition, result) + "</div>";
+    let condition = sub_equation(generate_code_string(else_if_exp.test.loc));
+    let result = '} else if (' + condition + ') {';
+    result = '<div>' + make_space(else_if_exp.loc.start.column-7) + evaluate_expression(condition, result) + '</div>';
     result = result + get_substituted_code(else_if_exp.consequent, true);
     clear_inner_block_args();
 
     if (else_if_exp.alternate == null)
-        return result + '<div>' + make_space(else_if_exp.loc.start.column) + '}</div>';
+        return result + '<div>' + make_space(else_if_exp.loc.start.column-7) + '}</div>';
     if (else_if_exp.alternate.type==='IfStatement') // else-if
         return result + compElseIfExp(else_if_exp.alternate);
     else { //else
-        result += "<div>" + make_space(else_if_exp.loc.start.column - 7) + "} else { </div>";
+        result += '<div>' + make_space(else_if_exp.loc.start.column - 7) + '} else { </div>';
         result += get_substituted_code(else_if_exp.alternate, true);//Gets the <div> by itself
-        result += "<div>" + make_space(else_if_exp.loc.start.column - 7) + "}</div>";
+        result += '<div>' + make_space(else_if_exp.loc.start.column - 7) + '}</div>';
         clear_inner_block_args();
         return result;
     }
 }
 
-function compForExp(for_exp, in_condition_block=false){
-    let inner_statement = input_code.split('</br>')[for_exp.loc.start.line-1];
+function compForExp(for_exp){
+    let inner_statement = input_code.split('\n')[for_exp.loc.start.line-1]; // "let i=0; i < c+x; i = i+1"
     inner_statement = inner_statement.substring(for_exp.init.loc.start.column, for_exp.update.loc.end.column);
-
-    let result = "<div>" + make_space(for_exp.loc.start.column) + "for (" + inner_statement + "){</div>";
+    inner_statement = parse_for_inner_statement(inner_statement);
+    let result = '<div>' + make_space(for_exp.loc.start.column) + 'for (' + inner_statement + '){</div>';
     result = result +
         get_substituted_code(for_exp.body, true) +
-        "<div>" + make_space(for_exp.loc.start.column) + "}</div>";
+        '<div>' + make_space(for_exp.loc.start.column) + '}</div>';
     clear_inner_block_args();
     return result;
 }
 
-function compWhileExp(while_exp, in_condition_block=false){
+function parse_for_inner_statement(inner_statement){
+    inner_statement = inner_statement.split(';'); //["let i=0", "i < y + 1 + x", "i = i+1"]
+    let parsed_statement = [];
+    inner_statement[0] = inner_statement[0].split('let')[1].trim(); // "i=0"
+    for (let i = 0; i < 3; i++) {
+        parsed_statement[i] = sub_equation(inner_statement[i]);
+    }
+
+    return parsed_statement.join('; ');
+}
+
+function compWhileExp(while_exp){
     let condition = sub_equation(generate_code_string(while_exp.test.loc));
-    let result = "<div>" + make_space(while_exp.loc.start.column) + "while (" + condition + "){</div>";
+    let result = '<div>' + make_space(while_exp.loc.start.column) + 'while (' + condition + '){</div>';
     let while_body = get_substituted_code(while_exp.body, true);
     result =
         result +
         while_body +
-        "<div>" + make_space(while_exp.loc.start.column) + "}</div>";
+        '<div>' + make_space(while_exp.loc.start.column) + '}</div>';
 
     clear_inner_block_args();
     return result;
@@ -115,7 +128,7 @@ function compWhileExp(while_exp, in_condition_block=false){
 function get_substituted_code(parsed_code, in_condition_block=false) {
 
     let comp_function = expression_to_function[parsed_code.type];
-    return "" + (comp_function(parsed_code, in_condition_block));
+    return '' + (comp_function(parsed_code, in_condition_block));
 }
 
 function clear_inner_block_args(){
@@ -127,50 +140,45 @@ function clear_inner_block_args(){
     args_to_decrement = [];
 }
 
+function parse_global(condition, i) {
+    let name = condition[i];
+    let val = global_args[name];
+    if (val.length > 1) { // binary expression [ 3, +, 5, *, 2]
+        val = parse_condition(val);
+    } else { // [5] or [ [4] ] or [ "boop" ] or [ [2,4,5] ]
+        val = val[0];
+    }
+    return val;
+}
+
 function parse_condition(condition){
     //Receives an array and parses it to remove any variables and leaves only literal values.
 
     let result = [];
-    let op_set = new Set(['+', '-', '*', '/', '(', ')', '<', '>',]);
-    if(!condition.length)
-        return [condition];
+    let op_set = new Set(['+', '-', '*', '/', '(', ')', '<', '>','!=', '!==', '==', '===']);
+
     for (let i = 0; i < condition.length; i++){
         if(condition[i] in global_args){
-            let name = condition[i];
-            let val = global_args[name];
-            if(val.length > 1){ // binary expression [ 3, +, 5, *, 2]
-                val = parse_condition(val);
-            }
-            else{ // [5] or [ [4] ] or [ "boop" ] or [ [2,4,5] ]
-                val = val[0];
-            }
+            let val = parse_global(condition, i);
             result = result.concat(val);
             continue;
         }
         else if(condition[i] in input_args){
             let val = input_args[condition[i]].value;
             result = result.concat(val);
-            continue
-        }
-        else if(condition[i] in local_arg_dict){
-            let index = local_arg_indices[condition[i]];
-            let arg_value = local_arg_dict[condition[i]][index].value;
-            arg_value = parse_condition(arg_value);
-            result = result.concat(arg_value);
             continue;
         }
         else if (!op_set.has(condition[i])){ // Not an operator symbol
-            let exp = esprima.parse(""+condition[i]).body[0].expression;
+            let exp = esprima.parse(''+condition[i]).body[0].expression;
             if(exp.type === 'MemberExpression'){
                 let name = exp.object.name;
                 let idx = exp.property.value;
                 let val = find_and_extract_array_val(name, idx); // 10
                 result = result.concat(val);
-                //result = result.concat(parse_condition(val));
                 continue;
             }
         }
-        result = result.concat(condition[i])
+        result = result.concat(condition[i]);
     }
     return result;
 }
@@ -183,18 +191,19 @@ function evaluate_expression(condition, if_row){
     condition = comp_binary_expression(condition); // [b + y + 0 < (z) * (a)]
     condition = parse_condition(condition);
     condition = condition.join(' ');
+
     if(eval(condition)){
-        if_row = "<span class=true>" + if_row + "</span>"
+        if_row = '<span class=true>' + if_row + '</span>';
     }
     else{
-        if_row = "<span class=false>" + if_row + "</span>"
+        if_row = '<span class=false>' + if_row + '</span>';
     }
 
-    return if_row
+    return if_row;
 }
 
 function sub_equation(equation) {
-    //Receives an equation as a string and returns it after being properly parsed, as a string
+    //Receives an equation as a STRING and returns it after being properly parsed, as a STRING
 
     equation = esprima.parse(equation).body[0].expression; //{type:binary expression ... }
     equation = comp_binary_expression(equation); // [b + y + 0 < (z) * (a)]
@@ -213,12 +222,12 @@ function compVarDeclaratorExp(var_dec, in_condition_block=false){
         get_updated_arg_value(var_dec.id.name, var_dec.init);
     }
 
-    if (in_condition_block) {
-        local_arg_indices[var_dec.id.name] += 1;
+    if (in_condition_block) { //Declared a variable for the first time in a new block..
+        local_arg_indices[var_dec.id.name] = 0;
         args_to_decrement.push(var_dec.id.name);
     }
 
-    return "";
+    return '';
 }
 
 function compAssignmentExp(assignment_exp, in_condition_block=false){
@@ -232,11 +241,11 @@ function compAssignmentExp(assignment_exp, in_condition_block=false){
         }
         let index = local_arg_indices[arg_name];
         local_arg_dict[arg_name][index].value = new_val;
-        return "";
+        return '';
     }
     else{ //function or global argument. Return it!
-        return "<div>" + make_space(assignment_exp.loc.start.column) +
-            arg_name + " = " + sub_equation(new_val.join(' ')) + "</div>";
+        return '<div>' + make_space(assignment_exp.loc.start.column) +
+            arg_name + ' = ' + sub_equation(new_val.join(' ')) + '</div>';
     }
 }
 
@@ -248,7 +257,7 @@ function get_updated_arg_value(arg_name, init) {
 }
 
 function compVarDeclarationExp(var_dec_exp, in_condition_block=false){
-    let result = "";
+    let result = '';
     for(let i = 0; i < var_dec_exp.declarations.length; i++) {
         let v_code = var_dec_exp.declarations[i];
 
@@ -258,7 +267,7 @@ function compVarDeclarationExp(var_dec_exp, in_condition_block=false){
 }
 
 function compBlockStatement(block_exp, in_condition_block=false){
-    let result = "";
+    let result = '';
 
     for(let i=0; i<block_exp.body.length; i++){
         let code = block_exp.body[i];
@@ -268,47 +277,57 @@ function compBlockStatement(block_exp, in_condition_block=false){
     return result;
 }
 
-function remove_zeros_and_brackets_from_array(equation){
+function remove_zeroes(equation, new_equation, i) {
+    if (equation.length === 1) { //equation: [ '0' ]
+        new_equation = new_equation.concat(equation[i]);
+    } else if (i === 0) { //Equation begins with a 0
+        i++;
+    }
+    //Look backward
+    else if ((equation[i - 1] === '+' || equation[i - 1] === '-') && // 5 + 0 + 4  --> 5 + 4
+        (i === equation.length - 1 || (equation[i + 1] !== '*' && equation[i + 1] !== '/'))) {
+        new_equation.length = new_equation.length - 1; //remove last item ?
+    } else if (equation[i - 1] === '(' && equation[i + 1] !== '*' && equation[i + 1] !== '/' && equation[i + 1] !== ')') {
+        i++;
+    } else if ((equation[i - 1] === '<' || equation[i - 1] === '<') && // i < 0 + x --> i < x
+        (equation[i + 1] !== '*' && equation[i + 1] !== '/')) {
+        i++;
+    }                               // i = 0 * x --> i = 0 * x
+    else { //i = 0 --> i = 0
+        new_equation = new_equation.concat(equation[i]);
+    }
+    return {new_equation, i};
+}
+
+function parse_closing_bracket(close_bracket_idx, new_equation, open_bracket_idx, equation, i) {
+    close_bracket_idx = new_equation.length;
+    if (close_bracket_idx - open_bracket_idx === 2) { //Only one parameter between the brackets. Bye-bye brackets
+        new_equation.splice(open_bracket_idx, 1);
+    } else {
+        new_equation = new_equation.concat([equation[i]]);
+    }
+    return new_equation;
+}
+
 // input: [0 + x + ( 0 + 1) * ( y ) + 0 < ( 0 ) * ( 0 + x + 1 + 0)]
 // output: [x + 1 * y < 0 * ( x + 1 )]
-
-    let new_equation = [];
-    let open_bracket_idx = 0, close_bracket_idx = 0;
+function remove_zeros_and_brackets_from_array(equation){
+    let new_equation = [], open_bracket_idx = 0, close_bracket_idx = 0;
     for (let i = 0; i < equation.length ; i++) {
-        if(equation[i] === "0" || equation[i] === 0){
-            if(equation.length === 1){
-                new_equation = new_equation.concat(equation[i]);
-            }
-            else if(i === 0){
-                i++;
-            }
-            //Look backward
-            else if((equation[i-1] === "+" || equation[i-1] === "-") &&
-                (i === equation.length-1 || (equation[i+1] !== "*" && equation[i+1] !== "/"))){
-                new_equation.length = new_equation.length-1; //remove last item ?
-            }
-            else if(equation[i-1] === "(" && equation[i+1] !== "*" && equation[i+1] !== "/" && equation[i+1] !== ")"){
-                i++;
-            }
+        if(equation[i] === '0' || equation[i] === 0){
+            const __ret = remove_zeroes(equation, new_equation, i);
+            new_equation = __ret.new_equation;
+            i = __ret.i;
         }
         else if(equation[i] === '('){
             new_equation = new_equation.concat(equation[i]);
             open_bracket_idx = new_equation.length-1;
         }
         else if(equation[i] === ')'){
-            close_bracket_idx = new_equation.length;
-            if(close_bracket_idx - open_bracket_idx === 2){ //Only one parameter between the brackets. Bye-bye brackets
-                new_equation.splice(open_bracket_idx, 1)
-            }
-            else{
-                new_equation = new_equation.concat([equation[i]]);
-            }
+            new_equation = parse_closing_bracket(close_bracket_idx, new_equation, open_bracket_idx, equation, i);
         }
-        else{ //Its A-OK
-            new_equation = new_equation.concat([equation[i]]);
-        }
+        new_equation = new_equation.concat([equation[i]]);
     }
-
     return new_equation;
 }
 
@@ -326,95 +345,126 @@ function find_and_extract_array_val(name, idx) {
     }
 }
 
+// Receives an array such as ["a", "+", "b[1]", "+", "g2"] and returns ["x", "+", "1", "+", "3", "+", "g2"]
 function sub_exp_to_array(expression) {
-// Receives an array such as ["a", "+", "y", "+", "g2"] and returns ["x", "+", "1", "+", "y", "+", "g2"]
     let result = [];
-    if(!expression.length)
-        return [expression];
+    let op_set = new Set(['+', '-', '*', '/', '(', ')', '<', '>','!=', '!==', '==', '===']);
+    let temp_array = [];
     for (let i = 0; i < expression.length; i++){
-
         if(expression[i] in local_arg_dict){
-            let index = local_arg_indices[expression[i]];
-            let arg_value = local_arg_dict[expression[i]][index].value;
-            arg_value = sub_exp_to_array(arg_value);
-            result = result.concat(arg_value);
-            continue;
+            let arg_value = local_arg_dict[expression[i]][local_arg_indices[expression[i]]].value;
+            result = result.concat(sub_exp_to_array(arg_value)); continue;
         }
-        result = result.concat(expression[i])
+        else if (!op_set.has(expression[i])){
+            let exp = esprima.parse(''+expression[i]).body[0].expression;
+            if(exp.type === 'MemberExpression'){
+                let val = find_and_extract_array_val(exp.object.name, exp.property.value); // 10
+                result = result.concat(val);            continue;
+            }
+        }
+        else if(Array.isArray(expression[i])){
+            for (let j = 0; j < expression[i].length; j++) {
+                temp_array.concat(sub_exp_to_array(expression[i][j])); // ToDO: CHECK THIS!!
+            }
+        }
+        result = result.concat(expression[i]);
     }
     return remove_zeros_and_brackets_from_array(result);
 }
 
 function comp_binary_expression(expression){
     //recursively extract the values of a given expression. Returns an array
-
+    let left, right, result;
     switch(expression.type){
-        case('VariableDeclaration'):
-            return comp_binary_expression(expression.declarations[0]);
-        case('Identifier'):
-            return [expression.name];
-        case('Literal'):
-            return [expression.value];
-        case('VariableDeclarator'):
-            if(expression.init)
-                return comp_binary_expression(expression.init);
-            else
-                return [null];
-        case('BinaryExpression'):
-            let left = comp_binary_expression(expression.left);
-            let right = comp_binary_expression(expression.right);
-            if(expression.operator === "*" || expression.operator === "/"){
-                left = ["("].concat(left).concat(")");
-                right = ["("].concat(right).concat(")");
-                return left.concat([expression.operator]).concat(right);
-            }
-            else
-                return left.concat([expression.operator]).concat(right);
-        case('ArrayExpression'):
-            let result = [];
-            for (let i = 0; i < expression.elements.length; i++) {
-                result.push(comp_binary_expression(expression.elements[i])[0])
-            }
-            return [result];
-        case('MemberExpression'):
-            return [expression.object.name + '[' + expression.property.value +']'];
+    //  case('VariableDeclaration'):
+    //       return comp_binary_expression(expression.declarations[0]);
+    case('Identifier'):
+        return [expression.name];
+    case('Literal'):
+        return [expression.raw];
+        /*   case('VariableDeclarator'):
+        if(expression.init)
+            return comp_binary_expression(expression.init);
+        else
+            return [null]; */
+    case('BinaryExpression'):
+        left = comp_binary_expression(expression.left);
+        right = comp_binary_expression(expression.right);
+        if(expression.operator === '*' || expression.operator === '/'){
+            left = ['('].concat(left).concat(')');
+            right = ['('].concat(right).concat(')');
+            return left.concat([expression.operator]).concat(right);
+        }
+        else
+            return left.concat([expression.operator]).concat(right);
+    case('ArrayExpression'):
+        result = [];
+        for (let i = 0; i < expression.elements.length; i++) {
+            result.push(comp_binary_expression(expression.elements[i])[0]);
+        }
+        return [result];
+    case('MemberExpression'):
+        return [expression.object.name + '[' + expression.property.value +']'];
+    case('AssignmentExpression'):
+        return comp_binary_expression(expression.left).concat(['=']).concat(comp_binary_expression(expression.right));
     }
 }
 
 function create_input_arg_string() {
     let result = [];
-    for (const [key, value] of Object.entries(input_args)) {
+    for (const [key] of Object.entries(input_args)) {
         result.push(key);
     }
-    return result.join(", ");
+    return result.join(', ');
 }
 
-function compReturnExp(return_exp, in_condition_block=false){
-    return "<div>" + make_space(return_exp.loc.start.column) + "return " +
-        sub_equation(generate_code_string(return_exp.argument.loc)) + ";</div>";
+function compReturnExp(return_exp){
+    return '<div>' + make_space(return_exp.loc.start.column) + 'return ' +
+        sub_equation(generate_code_string(return_exp.argument.loc)) + ';</div>';
 }
 
-function compProgram(program, in_condition_block=false){
+function compProgram(program, in_condition_block){
 //function for computing program expression (the main object)
 
-    let result = "";
+    let result = '';
     for(let i = 0; i < program.body.length; i++) {
         let exp = program.body[i];
-        result = result + get_substituted_code(exp, in_condition_block);
+        if(exp.type === 'FunctionDeclaration')
+            result = result + get_substituted_code(exp, in_condition_block);
     }
     return result;
+}
+
+function compUpdateExpression(update_exp){
+    let name = update_exp.argument.name;
+    let op = update_exp.operator;
+    if(name in input_args){
+        if(op === '++')
+            input_args[name] += 1;
+        else
+            input_args[name] -= 1;
+        return '<div>' + make_space(update_exp.loc.start.column) + name + op + ';</div>';
+    }
+    if(name in global_args){
+        if(op === '++')
+            global_args[name] += 1;
+        else
+            global_args[name] -= 1;
+        return '<div>' + make_space(update_exp.loc.start.column) + name + op + ';</div>';
+    }
+    return '';
 }
 
 function compFuncDec(func_dec_exp){
 
     let input_string = create_input_arg_string();
-    let func_dec_string = "<div>function " + func_dec_exp.id.name + "(" + input_string + "){</div>";
+    let func_dec_string = '<div>function ' + func_dec_exp.id.name + '(' + input_string + '){</div>';
     return func_dec_string +
         get_substituted_code(func_dec_exp.body) +
-        "<div>}</div>";
+        '<div>}</div>';
 }
 
-function compExpStatement(exp_statement, in_condition_block=false){
+function compExpStatement(exp_statement, in_condition_block){
     return get_substituted_code(exp_statement.expression, in_condition_block);
 }
 
@@ -423,12 +473,12 @@ function generate_code_string(location){
     return rows[location.start.line-1].substring(location.start.column, location.end.column);
 }
 
-export {get_substituted_code, perform_substitution};
+export {get_substituted_code, perform_substitution, clear_memory};
 
 function make_space(n){
-    let space = "";
+    let space = '';
     for (let i = 0; i < n; i++) {
-        space += " "
+        space += ' ';
     }
     return space;
 }
