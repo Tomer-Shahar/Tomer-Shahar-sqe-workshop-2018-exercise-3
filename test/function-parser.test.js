@@ -93,16 +93,7 @@ it('9 - parses function with if / else correctly', () => {
     assert.equal(JSON.stringify(funcParser.analyzed_code(
         'function foo(x, y, z){\n' +
         '    let a = x + 1;\n' +
-        '    let b = a + y;\n' +
-        '    let c = 0;\n' +
-        '    \n' +
-        '    if (b < z) {\n' +
-        '        c = c + 5;\n' +
-        '        return x + y + z + c;\n' +
-        '    } else {\n' +
-        '        c = c + z + 5;\n' +
-        '        return x + y + z + c;\n' +
-        '    }\n' + '}',
+        '    let b = a + y;\n' +        '    let c = 0;\n' +        '    \n' +        '    if (b < z) {\n' +        '        c = c + 5;\n' +        '        return x + y + z + c;\n' +        '    } else {\n' +        '        c = c + z + 5;\n' +        '        return x + y + z + c;\n' +        '    }\n' + '}',
         '1, 2, 3')),
     JSON.stringify(
         '<div>function foo(x, y, z){</div>' +
@@ -153,27 +144,7 @@ it('11 - parses function with global variables', () => {
 
 it('12 - parses difficult function with global variables', () => {
     assert.equal(JSON.stringify(funcParser.analyzed_code(
-        'let g1 = [3,10];\n' +
-        'let g2 = 5;\n' +
-        'let g3 = g1[1] - 5;\n' +
-        'let g4 = [5];\n' +
-        'function foo(x, y, z){\n' +
-        '    let a = x + 1 + g1[1];\n' +
-        '    let b = 3 + y + g3;\n' +
-        '    let c = g3;\n' +
-        '    \n' +
-        '    if (b + y + g1[0] + g2 + g3 < z) {\n' +
-        '        c = c + 5;\n' +
-        '        return x + y + z + c;\n' +
-        '    } else if (b < z * (2 + g1[1])) {\n' +
-        '        c = c + x + 5;\n' +
-        '        x = y - z + g4;\n' +
-        '        return x + y + z + c;\n' +
-        '    } else {\n' +
-        '        c = c + z + 5;\n' +
-        '        g2 = c + g1[0];\n' +
-        '        return x + y + z + g3;\n' +
-        '    }\n' +
+        'let g1 = [3,10];\n' +        'let g2 = 5;\n' +        'let g3 = g1[1] - 5;\n' +        'let g4 = [5];\n' +        'function foo(x, y, z){\n' +        '    let a = x + 1 + g1[1];\n' +        '    let b = 3 + y + g3;\n' +        '    let c = g3;\n' +        '    \n' +        '    if (b + y + g1[0] + g2 + g3 < z) {\n' +        '        c = c + 5;\n' +        '        return x + y + z + c;\n' +        '    } else if (b < z * (2 + g1[1])) {\n' +        '        c = c + x + 5;\n' +        '        x = y - z + g4;\n' +        '        return x + y + z + c;\n' +        '    } else {\n' +        '        c = c + z + 5;\n' +        '        g2 = c + g1[0];\n' +        '        return x + y + z + g3;\n' +        '    }\n' +
         '}\n',
         '0, 0, 1')),
     JSON.stringify(
@@ -193,21 +164,10 @@ it('12 - parses difficult function with global variables', () => {
 
 it('13 - parses function with for loop', () => {
     assert.equal(JSON.stringify(funcParser.analyzed_code(
-        'function foo(x, y, z){\n' +
-        '    let a = x[0] + 1;\n' +
-        '    let b = a + y;\n' +
-        '    let c = 0;\n' +
-        '    \n' +
-        '    if (b < z) {\n' +
-        '        c = c + 5;\n' +
-        '        return x + y + z + c;\n' +
-        '    } else {\n' +
-        '        for(let i=0; i < c+x; i = i+1){\n' +
-        '            y = y + 1;\n' +
-        '        }\n' +
-        '        return x + y + z + c;\n' +
-        '    }\n' +
-        '}',
+        'function foo(x, y, z){\n' +        '    let a = x[0] + 1;\n' +        '    let b = a + y;\n' +        '    let c = 0;\n' +
+        '    \n' +        '    if (b < z) {\n' +        '        c = c + 5;\n' +        '        return x + y + z + c;\n' +
+        '    } else {\n' +        '        for(let i=0; i < c+x; i = i+1){\n' +        '            y = y + 1;\n' +        '        }\n' +
+        '        return x + y + z + c;\n' +        '    }\n' +        '}',
         '[10,2], 1, 5')),
     JSON.stringify(
         '<div>function foo(x, y, z){</div>' +
@@ -225,24 +185,7 @@ it('13 - parses function with for loop', () => {
 
 it('14 - parses function with if - else', () => {
     assert.equal(JSON.stringify(funcParser.analyzed_code(
-        'function foo(x, y, z){\n' +
-        '    let a = x + 1;\n' +
-        '    \n' +
-        '    if(a < 5){\n' +
-        '        x = x + 1;\n' +
-        '    } else if(y < z) {\n' +
-        '        z = z * 2;\n' +
-        '    } else if(y > x) {\n' +
-        '        a = a + 5;\n' +
-        '        return a;\n' +
-        '    }\n' +
-        '\n' +
-        '    if(a < 5){\n' +
-        '        x = x + 1;\n' +
-        '    } else if(y < z) {\n' +
-        '        z = z * 2;\n' +
-        '    } \n' +
-        '    return z;\n' +
+        'function foo(x, y, z){\n' +        '    let a = x + 1;\n' +        '    \n' +        '    if(a < 5){\n' +        '        x = x + 1;\n' +        '    } else if(y < z) {\n' +        '        z = z * 2;\n' +        '    } else if(y > x) {\n' +        '        a = a + 5;\n' +        '        return a;\n' +        '    }\n' +        '\n' +        '    if(a < 5){\n' +        '        x = x + 1;\n' +        '    } else if(y < z) {\n' +        '        z = z * 2;\n' +        '    } \n' +        '    return z;\n' +
         '}',
         '')),
     JSON.stringify(
@@ -257,24 +200,13 @@ it('14 - parses function with if - else', () => {
         '<div>    <span class=true>if (x + 1 < 5) {</span></div>' +
         '<div>        x = x + 1;</div>' +
         '<div>    <span class=false>} else if (y < z) {</span></div>' +
-        '<div>        z = z * 2;</div>' +
-        '<div>    }</div>' +
-        '<div>    return z;</div>' +
-        '<div>}</div>'
+        '<div>        z = z * 2;</div>' +        '<div>    }</div>' +        '<div>    return z;</div>' +        '<div>}</div>'
     ));
 });
 
 it('15 - parses function with string and bool paramaters', () => {
     assert.equal(JSON.stringify(funcParser.analyzed_code(
-        'function foo(x, y, z){\n' +
-        '    if(x) {\n' +
-        '        z++;\n' +
-        '        return 10;\n' +
-        '    } else if(y === "sqe") {\n' +
-        '        return 20;\n' +
-        '    }\n' +
-        '    return 50;\n' +
-        '}',
+        'function foo(x, y, z){\n' +        '    if(x) {\n' +        '        z++;\n' +        '        return 10;\n' +        '    } else if(y === "sqe") {\n' +        '        return 20;\n' +        '    }\n' +        '    return 50;\n' +        '}',
         'false, "sqe", 0'))
     ,
     JSON.stringify(
@@ -293,11 +225,7 @@ it('15 - parses function with string and bool paramaters', () => {
 it('16 - parses function with if no consequence and a var declarator in a block', () => {
     assert.equal(JSON.stringify(funcParser.analyzed_code(
         'function foo(x, y){\n' +
-        '    if(x) {\n' +
-        '        y++;\n' +
-        '        return 10;\n' +
-        '    }\n' +
-        '    return 50;\n' +
+        '    if(x) {\n' +        '        y++;\n' +        '        return 10;\n' +        '    }\n' +        '    return 50;\n' +
         '}',
         ''))
     ,
@@ -314,34 +242,7 @@ it('16 - parses function with if no consequence and a var declarator in a block'
 
 it('17 - parses function with many global arg functions and update expressions and arrays', () => {
     assert.equal(JSON.stringify(funcParser.analyzed_code(
-        'let g = 1;\n' +
-        'g = 4;\n' +
-        'g++;\n' +
-        'g--;\n' +
-        'let g2;\n' +
-        'g2 = g + 3;\n' +
-        'let g3 = [2, 3 ,4];\n' +
-        'g2 = g2 * (g3[1] + 1);\n' +
-        'function foo(x, y, z){\n' +
-        '    let a = x + 1;\n' +
-        '    let b = [2, 4, true] ;\n' +
-        '    if(b[2]){\n' +
-        '        a = b[0];\n' +
-        '        x = b[0];\n' +
-        '    }\n' +
-        '    g--;\n' +
-        '    g++;\n' +
-        '    a = a + 1;\n' +
-        '    a++;\n' +
-        '    x--;\n' +
-        '    \n' +
-        '    if(a < 5){\n' +
-        '        x = x + 1;\n' +
-        '        let c;\n' +
-        '        c = b[1];\n' +
-        '        return c;\n' +
-        '    }\n' +
-        '}',
+        'let g = 1;\n' +        'g = 4;\n' +        'g++;\n' +        'g--;\n' +        'let g2;\n' +        'g2 = g + 3;\n' +        'let g3 = [2, 3 ,4];\n' +        'g2 = g2 * (g3[1] + 1);\n' +        'function foo(x, y, z){\n' +        '    let a = x + 1;\n' +        '    let b = [2, 4, true] ;\n' +        '    if(b[2]){\n' +        '        a = b[0];\n' +        '        x = b[0];\n' +        '    }\n' +        '    g--;\n' +        '    g++;\n' +        '    a = a + 1;\n' +        '    a++;\n' +        '    x--;\n' +        '    \n' +        '    if(a < 5){\n' +        '        x = x + 1;\n' +        '        let c;\n' +        '        c = b[1];\n' +        '        return c;\n' +        '    }\n' +        '}',
         '0, 0, [2, [1, [0]], true]'))
     ,
     JSON.stringify(
