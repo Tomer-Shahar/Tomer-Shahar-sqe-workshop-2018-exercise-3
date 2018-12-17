@@ -192,7 +192,7 @@ function extract_identifier(expression){
 }
 
 function extract_literal(expression){
-    return [expression.value];
+    return [expression.raw];
 }
 
 function extract_var_declarator(expression){
@@ -254,66 +254,61 @@ function get_global_vars_declarations(input_func) {
     return global_vars;
 }
 
+function extract_update_expression(global_var_decs, i, global_args) {
+    let name = global_var_decs[i].expression.argument.name;
+    let op = global_var_decs[i].expression.operator;
+    if (op === '++')
+        global_args[name][0] += 1;
+    else
+        global_args[name][0] -= 1;
+}
+
 function extract_global_arguments() {
-    let i = 0;
-    let global_args = {};
-    let global_var_decs = get_global_vars_declarations(input_func);
-    let val = [];
+    let global_var_decs = get_global_vars_declarations(input_func), global_args = {}, i = 0, val = [];
     while(i<global_var_decs.length){
         if(global_var_decs[i].type === 'VariableDeclaration'){
             for(let j = 0; j < global_var_decs[i].declarations.length; j++){
                 let arg_name = global_var_decs[i].declarations[j].id.name;
-                val = extract_assignment(global_var_decs[i].declarations[j]);
-                global_args[arg_name] = val;
+                global_args[arg_name] = extract_assignment(global_var_decs[i].declarations[j]);
             }
         }
         else if(global_var_decs[i].expression.type === 'AssignmentExpression'){
-            let arg_name = global_var_decs[i].expression.left.name;
-            val = extract_assignment(global_var_decs[i].expression.right); //[g3, +, 2] --> [7]
-            val = parse_global_var(val, global_args);
-            // val = eval(val.join(' '));
-            global_args[arg_name] = val;
+            val = parse_global_var(extract_assignment(global_var_decs[i].expression.right), global_args);
+            global_args[global_var_decs[i].expression.left.name] = val;
         }
         else { //it's an update expression
-            let name = global_var_decs[i].expression.argument.name;
-            let op = global_var_decs[i].expression.operator;
-            if (op === '++')
-                global_args[name][0] += 1;
-            else
-                global_args[name][0] -= 1;
+            extract_update_expression(global_var_decs, i, global_args);
         }
         i++;
     }
     return global_args;
 }
 
+function parse_inner_global_var(expression, i, global_args, result) {
+    let name = expression[i];
+    let val = global_args[name];
+    if (val.length > 1) { // binary expression [ 3, +, 5, *, 2]
+        val = parse_global_var(val, global_args);
+    } else { // [5] or [ [4] ] or [ "boop" ] or [ [2,4,5] ]
+        val = val[0];
+    }
+    result = result.concat(val);
+    return result;
+}
+//Receives an array and parses it to remove any variables and leaves only literal values.
 function parse_global_var(expression, global_args){
-    //Receives an array and parses it to remove any variables and leaves only literal values.
-
     let result = [];
     let op_set = new Set(['+', '-', '*', '/', '(', ')', '<', '>',]);
 
     for (let i = 0; i < expression.length; i++){
         if(expression[i] in global_args){
-            let name = expression[i];
-            let val = global_args[name];
-            if(val.length > 1){ // binary expression [ 3, +, 5, *, 2]
-                val = parse_global_var(val, global_args);
-            }
-            else{ // [5] or [ [4] ] or [ "boop" ] or [ [2,4,5] ]
-                val = val[0];
-            }
-            result = result.concat(val);
+            result = parse_inner_global_var(expression, i, global_args, result);
             continue;
         }
         else if (!op_set.has(expression[i])){ // Not an operator symbol
             let exp = esprima.parse(''+expression[i]).body[0].expression;
             if(exp.type === 'MemberExpression'){
-                let name = exp.object.name;
-                let idx = exp.property.value;
-                let val = global_args[name][0][idx];
-                result = result.concat(val);
-                //result = result.concat(parse_condition(val));
+                result = result.concat(global_args[exp.object.name][0][exp.property.value]);
                 continue;
             }
         }
@@ -333,14 +328,24 @@ function extract_arg_names(input_func){
 
 function extract_arg_types(arg){
     //Returns the type of the argument: bool, array, string or num
-    if(arg.charAt(0) === '[')
-        return 'array';
+    let type = check_first_char(arg);
+
+    if(type)
+        return type;
+
     if(arg === 'true' || arg === 'false')
         return 'bool';
-    if(arg.charAt(0) === '\'' || arg.charAt(0) === '"')
-        return 'string';
     else
         return 'num';
+}
+
+function check_first_char(arg){
+    if(arg.charAt(0) === '[')
+        return 'array';
+    if(arg.charAt(0) === '\'' || arg.charAt(0) === '"')
+        return 'string';
+
+    return null;
 }
 
 function clear_memory(){

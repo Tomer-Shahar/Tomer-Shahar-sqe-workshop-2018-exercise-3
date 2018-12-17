@@ -8,34 +8,16 @@ $(document).ready(function () {
         let user_input_arguments = $('#inputArguments').val();
 
         input_func =
-        'let g = 1;\n' +
-        'g = 4;\n' +
-        'g++;\n' +
-        'g--;\n' +
-        'let g2;\n' +
-        'g2 = g + 3;\n' +
-        'let g3 = [2, 3 ,4];\n' +
-        'g2 = g2 * (g3[1] + 1);\n' +
         'function foo(x, y, z){\n' +
-        '    let a = x + 1;\n' +
-        '    let b = [2, 4, true] ;\n' +
-        '    if(b[2]){\n' +
-        '        a = b[0];\n' +
-        '        x = b[0];\n' +
+        '    if(x) {\n' +
+        '        z++;\n' +
+        '        return 10;\n' +
+        '    } else if(y === "sqe") {\n' +
+        '        return 20;\n' +
         '    }\n' +
-        '    g--;\n' +
-        '    a = a + 1;\n' +
-        '    a++;\n' +
-        '    x--;\n' +
-        '    \n' +
-        '    if(a < 5){\n' +
-        '        x = x + 1;\n' +
-        '        let c;\n' +
-        '        c = b[1];\n' +
-        '        return c;\n' +
-        '    }\n' +
+        '    return 50;\n' +
         '}';
-        user_input_arguments = '';
+        user_input_arguments = 'false, "sqe", 0';
 
         //if(input_func !== '' && user_input_arguments !== ''){
         $('#codeOutput').empty();

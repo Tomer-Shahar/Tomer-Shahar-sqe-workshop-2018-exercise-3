@@ -312,7 +312,7 @@ it('16 - parses function with if no consequence and a var declarator in a block'
     ));
 });
 
-it('17 - parses function with if no consequence and a var declarator in a block', () => {
+it('17 - parses function with many global arg functions and update expressions and arrays', () => {
     assert.equal(JSON.stringify(funcParser.analyzed_code(
         'let g = 1;\n' +
         'g = 4;\n' +

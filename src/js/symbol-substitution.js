@@ -1,4 +1,5 @@
 import * as esprima from 'esprima';
+import {extract_assignment} from './function-parser';
 
 // This json object will map between the different expressions of the original code.
 // Each expression in the original code has a different type and needs a specific parse method.
@@ -150,37 +151,40 @@ function parse_global(condition, i) {
     }
     return val;
 }
-
+//Receives an array and parses it to remove any variables and leaves only literal values.
 function parse_condition(condition){
-    //Receives an array and parses it to remove any variables and leaves only literal values.
-
-    let result = [];
-    let op_set = new Set(['+', '-', '*', '/', '(', ')', '<', '>','!=', '!==', '==', '===']);
+    let op_set = new Set(['+', '-', '*', '/', '(', ')', '<', '>','!=', '!==', '==', '===']), result = [];
 
     for (let i = 0; i < condition.length; i++){
         if(condition[i] in global_args){
             let val = parse_global(condition, i);
             result = result.concat(val);
-            continue;
         }
         else if(condition[i] in input_args){
             let val = input_args[condition[i]].value;
             result = result.concat(val);
-            continue;
         }
         else if (!op_set.has(condition[i])){ // Not an operator symbol
-            let exp = esprima.parse(''+condition[i]).body[0].expression;
-            if(exp.type === 'MemberExpression'){
-                let name = exp.object.name;
-                let idx = exp.property.value;
-                let val = find_and_extract_array_val(name, idx); // 10
-                result = result.concat(val);
-                continue;
-            }
+            result = result.concat(check_member_expression(condition[i]));
         }
-        result = result.concat(condition[i]);
+        else
+            result = result.concat(condition[i]);
     }
     return result;
+}
+
+function check_member_expression(exp){
+
+    let parsed_exp = esprima.parse(''+exp).body[0].expression;
+    if(parsed_exp.type === 'MemberExpression'){
+        let name = parsed_exp.object.name;
+        let idx = parsed_exp.property.value;
+        return find_and_extract_array_val(name, idx);
+    }
+    else{
+        return exp;
+    }
+
 }
 
 function evaluate_expression(condition, if_row){
@@ -277,18 +281,24 @@ function compBlockStatement(block_exp, in_condition_block){
     return result;
 }
 
+function after_plus_or_minus_and_is_last(equation, i) {
+    return (equation[i - 1] === '+' || equation[i - 1] === '-') && i === equation.length - 1;
+}
+
+function after_comparison_and_before_multiplication_or_division(equation, i) {
+    return (equation[i - 1] === '<' || equation[i - 1] === '<') && (equation[i + 1] !== '*' && equation[i + 1] !== '/');
+}
+
 function remove_zeroes(equation, new_equation, i) {
     if (equation.length === 1) { //equation: [ '0' ]
         new_equation = new_equation.concat(equation[i]);
     } else if (i === 0) { //Equation begins with a 0
         i++;
     }
-    else if ((equation[i - 1] === '+' || equation[i - 1] === '-') && i === equation.length - 1) {
+    else if (after_plus_or_minus_and_is_last(equation, i)) {
         new_equation.length = new_equation.length - 1; //remove last item ?
-   /* } else if (equation[i - 1] === '(' && equation[i + 1] !== '*' && equation[i + 1] !== '/' && equation[i + 1] !== ')') {
-        i++; */
-    } else if ((equation[i - 1] === '<' || equation[i - 1] === '<') && // i < 0 + x --> i < x
-        (equation[i + 1] !== '*' && equation[i + 1] !== '/')) {
+
+    } else if (after_comparison_and_before_multiplication_or_division(equation, i)) {
         i++;
     }
     else { //i = 0 --> i = 0
@@ -308,14 +318,17 @@ function parse_closing_bracket(close_bracket_idx, new_equation, open_bracket_idx
 }
 
 // input: [0 + x + ( 0 + 1) * ( y ) + 0 < ( 0 ) * ( 0 + x + 1 + 0)]
+function is_zero(equation, i) {
+    return equation[i] === '0' || equation[i] === 0;
+}
+
 // output: [x + 1 * y < 0 * ( x + 1 )]
 function remove_zeros_and_brackets_from_array(equation){
     let new_equation = [], open_bracket_idx = 0, close_bracket_idx = 0;
     for (let i = 0; i < equation.length ; i++) {
-        if(equation[i] === '0' || equation[i] === 0){
+        if(is_zero(equation, i)){
             const __ret = remove_zeroes(equation, new_equation, i);
-            new_equation = __ret.new_equation;
-            i = __ret.i;
+            new_equation = __ret.new_equation;            i = __ret.i;
         }
         else if(equation[i] === '('){
             new_equation = new_equation.concat(equation[i]);
@@ -350,17 +363,11 @@ function find_and_extract_array_val(name, idx) {
 function sub_exp_to_array(expression) {
     let result = [];
     let op_set = new Set(['+', '-', '*', '/', '(', ')', '<', '>','!=', '!==', '==', '===', '=']);
-    //let temp_array = [];
     for (let i = 0; i < expression.length; i++){
         if(expression[i] in local_arg_dict){
             let arg_value = local_arg_dict[expression[i]][local_arg_indices[expression[i]]].value;
             result = result.concat(sub_exp_to_array(arg_value)); continue;
         }
-        /*else if(Array.isArray(expression[i])){
-            for (let j = 0; j < expression[i].length; j++) {
-                temp_array.concat(sub_exp_to_array(expression[i][j])); // ToDO: CHECK THIS!!
-            }
-        } */
         else if (!op_set.has(expression[i])){
             let exp = esprima.parse(''+expression[i]).body[0].expression;
             if(exp.type === 'MemberExpression'){
@@ -382,53 +389,56 @@ function concat_array_member_if_not_local(name, idx){
     }
 }
 
-/*
-let extraction_func_map = {
-    'VariableDeclaration' : extract_var_declaration,
+let comp_exp_map = {
     'Identifier' : extract_identifier,
     'Literal' : extract_literal,
-    'VariableDeclarator' : extract_var_declarator,
     'BinaryExpression' : extract_binary_exp,
     'ArrayExpression' : extract_array_exp,
-    'MemberExpression' : extract_member_exp
-}; */
+    'MemberExpression' : extract_member_exp,
+    'AssignmentExpression' : extract_assignment_exp
+};
+
+function extract_identifier(expression){
+    return [expression.name];
+}
+
+function extract_literal(expression){
+    return [expression.raw];
+}
+
+function extract_binary_exp(expression){
+    let left,right;
+
+    left = extract_assignment(expression.left);
+    right = extract_assignment(expression.right);
+    if(expression.operator === '*' || expression.operator === '/'){
+        left = ['('].concat(left).concat(')');
+        right = ['('].concat(right).concat(')');
+        return left.concat([expression.operator]).concat(right);
+    }
+    else
+        return left.concat([expression.operator]).concat(right);
+}
+function extract_array_exp(expression){
+    let result = [];
+    for (let i = 0; i < expression.elements.length; i++) {
+        result.push(comp_binary_expression(expression.elements[i])[0]);
+    }
+    return [result];
+}
+
+function extract_member_exp(expression){
+    return [expression.object.name + '[' + expression.property.value +']'];
+}
+
+function extract_assignment_exp(expression) {
+    return comp_binary_expression(expression.left).concat(['=']).concat(comp_binary_expression(expression.right));
+}
 
 function comp_binary_expression(expression){
     //recursively extract the values of a given expression. Returns an array
-    let left, right, result;
-    switch(expression.type){
-    //  case('VariableDeclaration'):
-    //       return comp_binary_expression(expression.declarations[0]);
-    case('Identifier'):
-        return [expression.name];
-    case('Literal'):
-        return [expression.raw];
-        /*   case('VariableDeclarator'):
-        if(expression.init)
-            return comp_binary_expression(expression.init);
-        else
-            return [null]; */
-    case('BinaryExpression'):
-        left = comp_binary_expression(expression.left);
-        right = comp_binary_expression(expression.right);
-        if(expression.operator === '*' || expression.operator === '/'){
-            left = ['('].concat(left).concat(')');
-            right = ['('].concat(right).concat(')');
-            return left.concat([expression.operator]).concat(right);
-        }
-        else
-            return left.concat([expression.operator]).concat(right);
-    case('ArrayExpression'):
-        result = [];
-        for (let i = 0; i < expression.elements.length; i++) {
-            result.push(comp_binary_expression(expression.elements[i])[0]);
-        }
-        return [result];
-    case('MemberExpression'):
-        return [expression.object.name + '[' + expression.property.value +']'];
-    case('AssignmentExpression'):
-        return comp_binary_expression(expression.left).concat(['=']).concat(comp_binary_expression(expression.right));
-    }
+    let extract_func = comp_exp_map[expression.type];
+    return extract_func(expression);
 }
 
 function create_input_arg_string() {
