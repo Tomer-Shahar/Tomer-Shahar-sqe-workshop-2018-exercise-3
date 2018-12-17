@@ -216,7 +216,7 @@ function sub_equation(equation) {
     return equation;
 }
 
-function compVarDeclaratorExp(var_dec, in_condition_block=false){
+function compVarDeclaratorExp(var_dec, in_condition_block){
 
     if(var_dec.init) {
         get_updated_arg_value(var_dec.id.name, var_dec.init);
@@ -230,7 +230,7 @@ function compVarDeclaratorExp(var_dec, in_condition_block=false){
     return '';
 }
 
-function compAssignmentExp(assignment_exp, in_condition_block=false){
+function compAssignmentExp(assignment_exp, in_condition_block){
     let arg_name = assignment_exp.left.name;
     let new_val = get_updated_arg_value(arg_name, assignment_exp.right);
 
@@ -245,7 +245,7 @@ function compAssignmentExp(assignment_exp, in_condition_block=false){
     }
     else{ //function or global argument. Return it!
         return '<div>' + make_space(assignment_exp.loc.start.column) +
-            arg_name + ' = ' + sub_equation(new_val.join(' ')) + '</div>';
+            arg_name + ' = ' + sub_equation(new_val.join(' ')) + ';</div>';
     }
 }
 
@@ -256,7 +256,7 @@ function get_updated_arg_value(arg_name, init) {
     return sub_exp_to_array(init);
 }
 
-function compVarDeclarationExp(var_dec_exp, in_condition_block=false){
+function compVarDeclarationExp(var_dec_exp, in_condition_block){
     let result = '';
     for(let i = 0; i < var_dec_exp.declarations.length; i++) {
         let v_code = var_dec_exp.declarations[i];
@@ -266,7 +266,7 @@ function compVarDeclarationExp(var_dec_exp, in_condition_block=false){
     return result;
 }
 
-function compBlockStatement(block_exp, in_condition_block=false){
+function compBlockStatement(block_exp, in_condition_block){
     let result = '';
 
     for(let i=0; i<block_exp.body.length; i++){
@@ -283,16 +283,14 @@ function remove_zeroes(equation, new_equation, i) {
     } else if (i === 0) { //Equation begins with a 0
         i++;
     }
-    //Look backward
-    else if ((equation[i - 1] === '+' || equation[i - 1] === '-') && // 5 + 0 + 4  --> 5 + 4
-        (i === equation.length - 1 || (equation[i + 1] !== '*' && equation[i + 1] !== '/'))) {
+    else if ((equation[i - 1] === '+' || equation[i - 1] === '-') && i === equation.length - 1) {
         new_equation.length = new_equation.length - 1; //remove last item ?
-    } else if (equation[i - 1] === '(' && equation[i + 1] !== '*' && equation[i + 1] !== '/' && equation[i + 1] !== ')') {
-        i++;
+   /* } else if (equation[i - 1] === '(' && equation[i + 1] !== '*' && equation[i + 1] !== '/' && equation[i + 1] !== ')') {
+        i++; */
     } else if ((equation[i - 1] === '<' || equation[i - 1] === '<') && // i < 0 + x --> i < x
         (equation[i + 1] !== '*' && equation[i + 1] !== '/')) {
         i++;
-    }                               // i = 0 * x --> i = 0 * x
+    }
     else { //i = 0 --> i = 0
         new_equation = new_equation.concat(equation[i]);
     }
@@ -326,7 +324,9 @@ function remove_zeros_and_brackets_from_array(equation){
         else if(equation[i] === ')'){
             new_equation = parse_closing_bracket(close_bracket_idx, new_equation, open_bracket_idx, equation, i);
         }
-        new_equation = new_equation.concat([equation[i]]);
+        else{
+            new_equation = new_equation.concat([equation[i]]);
+        }
     }
     return new_equation;
 }
@@ -341,36 +341,57 @@ function find_and_extract_array_val(name, idx) {
         return  input_args[name][idx];
     } else {
         let local_idx = local_arg_indices[name];
-        return local_arg_dict[name][local_idx][idx];
+        let local_array = local_arg_dict[name][local_idx].value[0];
+        return local_array[idx];
     }
 }
 
 // Receives an array such as ["a", "+", "b[1]", "+", "g2"] and returns ["x", "+", "1", "+", "3", "+", "g2"]
 function sub_exp_to_array(expression) {
     let result = [];
-    let op_set = new Set(['+', '-', '*', '/', '(', ')', '<', '>','!=', '!==', '==', '===']);
-    let temp_array = [];
+    let op_set = new Set(['+', '-', '*', '/', '(', ')', '<', '>','!=', '!==', '==', '===', '=']);
+    //let temp_array = [];
     for (let i = 0; i < expression.length; i++){
         if(expression[i] in local_arg_dict){
             let arg_value = local_arg_dict[expression[i]][local_arg_indices[expression[i]]].value;
             result = result.concat(sub_exp_to_array(arg_value)); continue;
         }
+        /*else if(Array.isArray(expression[i])){
+            for (let j = 0; j < expression[i].length; j++) {
+                temp_array.concat(sub_exp_to_array(expression[i][j])); // ToDO: CHECK THIS!!
+            }
+        } */
         else if (!op_set.has(expression[i])){
             let exp = esprima.parse(''+expression[i]).body[0].expression;
             if(exp.type === 'MemberExpression'){
-                let val = find_and_extract_array_val(exp.object.name, exp.property.value); // 10
-                result = result.concat(val);            continue;
-            }
-        }
-        else if(Array.isArray(expression[i])){
-            for (let j = 0; j < expression[i].length; j++) {
-                temp_array.concat(sub_exp_to_array(expression[i][j])); // ToDO: CHECK THIS!!
+                result = result.concat(concat_array_member_if_not_local(exp.object.name, exp.property.value));
+                continue;
             }
         }
         result = result.concat(expression[i]);
     }
     return remove_zeros_and_brackets_from_array(result);
 }
+
+function concat_array_member_if_not_local(name, idx){
+    if(name in local_arg_dict){
+        return find_and_extract_array_val(name, idx);
+    }
+    else{
+        return '' + name + '[' + idx + ']'; //g1[3]
+    }
+}
+
+/*
+let extraction_func_map = {
+    'VariableDeclaration' : extract_var_declaration,
+    'Identifier' : extract_identifier,
+    'Literal' : extract_literal,
+    'VariableDeclarator' : extract_var_declarator,
+    'BinaryExpression' : extract_binary_exp,
+    'ArrayExpression' : extract_array_exp,
+    'MemberExpression' : extract_member_exp
+}; */
 
 function comp_binary_expression(expression){
     //recursively extract the values of a given expression. Returns an array
