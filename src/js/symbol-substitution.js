@@ -23,12 +23,10 @@ let input_args;
 let global_args;
 let local_arg_dict;
 let local_arg_indices = {};
-let args_to_decrement = [];
 
 function perform_substitution(user_input_args, global_arguments, local_args, input_func){
     input_code = input_func;
     input_args = user_input_args;
-    //global_args = parse_global_args(global_arguments);
     global_args = global_arguments;
     local_arg_dict = local_args;
     let parsed_code = esprima.parse(input_func, {loc: true});
@@ -45,37 +43,35 @@ function clear_memory(){
     global_args = {};
     local_arg_dict = {};
     local_arg_indices = {};
-    args_to_decrement = [];
 }
 
 function compIfExp(if_exp){
 
     let condition = sub_equation(generate_code_string(if_exp.test.loc));
-    let result = 'if (' + condition + ') {';
-    let space = make_space(if_exp.loc.start.column);
-    result = '<div>' + space +  evaluate_expression(condition, result) + '</div>';
-    result = result + get_substituted_code(if_exp.consequent, true);
-    clear_inner_block_args();
+    let result = 'if (' + condition + ') {';    let space = make_space(if_exp.loc.start.column);
+    result = '<div>' + space +  evaluate_expression(condition, result) + '</div>';    let args_to_decrement = [];
+    result = result + get_substituted_code(if_exp.consequent, true, args_to_decrement);
+    clear_inner_block_args(args_to_decrement);
     if (if_exp.alternate == null) //No else or else-if (code just continues)
         return result + '<div>' + make_space(if_exp.loc.start.column) + '}</div>';
     if (if_exp.alternate.type==='IfStatement') // else_if
         return result + compElseIfExp(if_exp.alternate);
     else{ //else
         result += '<div>' + make_space(if_exp.loc.start.column) + '} else { </div>';
-        result += get_substituted_code(if_exp.alternate, true);//Gets the <div> by itself
+        args_to_decrement = [];
+        result += get_substituted_code(if_exp.alternate, true, args_to_decrement);//Gets the <div> by itself
         result += '<div>' + make_space(if_exp.loc.start.column) + '}</div>';
-        clear_inner_block_args();
+        clear_inner_block_args(args_to_decrement);
         return result;
     }
 }
 
 function compElseIfExp(else_if_exp){
-
-    let condition = sub_equation(generate_code_string(else_if_exp.test.loc));
-    let result = '} else if (' + condition + ') {';
+    let condition = sub_equation(generate_code_string(else_if_exp.test.loc));    let result = '} else if (' + condition + ') {';
     result = '<div>' + make_space(else_if_exp.loc.start.column-7) + evaluate_expression(condition, result) + '</div>';
-    result = result + get_substituted_code(else_if_exp.consequent, true);
-    clear_inner_block_args();
+    let args_to_decrement = [];
+    result = result + get_substituted_code(else_if_exp.consequent, true, args_to_decrement);
+    clear_inner_block_args(args_to_decrement);
 
     if (else_if_exp.alternate == null)
         return result + '<div>' + make_space(else_if_exp.loc.start.column-7) + '}</div>';
@@ -83,20 +79,22 @@ function compElseIfExp(else_if_exp){
         return result + compElseIfExp(else_if_exp.alternate);
     else { //else
         result += '<div>' + make_space(else_if_exp.loc.start.column - 7) + '} else { </div>';
-        result += get_substituted_code(else_if_exp.alternate, true);//Gets the <div> by itself
+        args_to_decrement = [];
+        result += get_substituted_code(else_if_exp.alternate, true, args_to_decrement);//Gets the <div> by itself
         result += '<div>' + make_space(else_if_exp.loc.start.column - 7) + '}</div>';
-        clear_inner_block_args();
+        clear_inner_block_args(args_to_decrement);
         return result;
     }
 }
 
 function compForExp(for_exp){
     let inner_statement = input_code.split('\n')[for_exp.loc.start.line-1]; // "let i=0; i < c+x; i = i+1"
+    let args_to_decrement = [];
     inner_statement = inner_statement.substring(for_exp.init.loc.start.column, for_exp.update.loc.end.column);
     inner_statement = parse_for_inner_statement(inner_statement);
     let result = '<div>' + make_space(for_exp.loc.start.column) + 'for (' + inner_statement + '){</div>';
     result = result +
-        get_substituted_code(for_exp.body, true) +
+        get_substituted_code(for_exp.body, true, args_to_decrement) +
         '<div>' + make_space(for_exp.loc.start.column) + '}</div>';
     clear_inner_block_args();
     return result;
@@ -114,9 +112,11 @@ function parse_for_inner_statement(inner_statement){
 }
 
 function compWhileExp(while_exp){
+
+    let args_to_decrement = [];
     let condition = sub_equation(generate_code_string(while_exp.test.loc));
     let result = '<div>' + make_space(while_exp.loc.start.column) + 'while (' + condition + '){</div>';
-    let while_body = get_substituted_code(while_exp.body, true);
+    let while_body = get_substituted_code(while_exp.body, true, args_to_decrement);
     result =
         result +
         while_body +
@@ -126,18 +126,19 @@ function compWhileExp(while_exp){
     return result;
 }
 
-function get_substituted_code(parsed_code, in_condition_block=false) {
+function get_substituted_code(parsed_code, in_condition_block=false, args_to_decrement) {
 
     let comp_function = expression_to_function[parsed_code.type];
-    return '' + (comp_function(parsed_code, in_condition_block));
+    return '' + (comp_function(parsed_code, in_condition_block, args_to_decrement));
 }
 
-function clear_inner_block_args(){
-    for (let i = 0; i < args_to_decrement.length; i++) {
-        let arg_name = args_to_decrement[i];
-        local_arg_dict[arg_name].splice(local_arg_indices[arg_name], 1);
-        local_arg_indices[arg_name]--;
-    }
+function clear_inner_block_args(args_to_decrement){
+    if(args_to_decrement)
+        for (let i = 0; i < args_to_decrement.length; i++) {
+            let arg_name = args_to_decrement[i];
+            local_arg_dict[arg_name].splice(local_arg_indices[arg_name], 1);
+            local_arg_indices[arg_name]--;
+        }
     args_to_decrement = [];
 }
 
@@ -220,7 +221,7 @@ function sub_equation(equation) {
     return equation;
 }
 
-function compVarDeclaratorExp(var_dec, in_condition_block){
+function compVarDeclaratorExp(var_dec, in_condition_block, args_to_decrement){
 
     if(var_dec.init) {
         get_updated_arg_value(var_dec.id.name, var_dec.init);
@@ -234,7 +235,7 @@ function compVarDeclaratorExp(var_dec, in_condition_block){
     return '';
 }
 
-function compAssignmentExp(assignment_exp, in_condition_block){
+function compAssignmentExp(assignment_exp, in_condition_block, args_to_decrement){
     let arg_name = assignment_exp.left.name;
     let new_val = get_updated_arg_value(arg_name, assignment_exp.right);
 
@@ -260,23 +261,23 @@ function get_updated_arg_value(arg_name, init) {
     return sub_exp_to_array(init);
 }
 
-function compVarDeclarationExp(var_dec_exp, in_condition_block){
+function compVarDeclarationExp(var_dec_exp, in_condition_block, args_to_decrement){
     let result = '';
     for(let i = 0; i < var_dec_exp.declarations.length; i++) {
         let v_code = var_dec_exp.declarations[i];
 
-        result += compVarDeclaratorExp(v_code, in_condition_block);
+        result += compVarDeclaratorExp(v_code, in_condition_block, args_to_decrement);
     }
     return result;
 }
 
-function compBlockStatement(block_exp, in_condition_block){
+function compBlockStatement(block_exp, in_condition_block, args_to_decrement){
     let result = '';
 
     for(let i=0; i<block_exp.body.length; i++){
         let code = block_exp.body[i];
 
-        result = result + get_substituted_code(code, in_condition_block);
+        result = result + get_substituted_code(code, in_condition_block, args_to_decrement);
     }
     return result;
 }
@@ -495,8 +496,8 @@ function compFuncDec(func_dec_exp){
         '<div>}</div>';
 }
 
-function compExpStatement(exp_statement, in_condition_block){
-    return get_substituted_code(exp_statement.expression, in_condition_block);
+function compExpStatement(exp_statement, in_condition_block, args_to_decrement){
+    return get_substituted_code(exp_statement.expression, in_condition_block, args_to_decrement);
 }
 
 function generate_code_string(location){

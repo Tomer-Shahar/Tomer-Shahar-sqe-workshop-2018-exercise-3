@@ -260,3 +260,22 @@ it('17 - parses function with many global arg functions and update expressions a
         '<div>}</div>'
     ));
 });
+
+it('18 - parses function with nested ifs', () => {
+    assert.equal(JSON.stringify(funcParser.analyzed_code(
+        'function foo(x,y){\n' +        '    let a = 5;\n' +        '    let b = 3;\n' +        '    if(a < x){\n' +        '       x = a + b;\n' +        '       if(b < y){\n' +        '           y = a - b;\n' +        '       } else if(b + a < y){\n' +        '           return x + y * a;\n' +        '       }\n' +        '    }\n' +        '}'
+        , '6, 8'))
+    ,
+    JSON.stringify(
+        '<div>function foo(x, y){</div>' +
+        '<div>    <span class=true>if (5 < x) {</span></div>' +
+        '<div>       x = 5 + 3;</div>' +
+        '<div>       <span class=true>if (3 < y) {</span></div>' +
+        '<div>           y = 5 - 3;</div>' +
+        '<div>       <span class=false>} else if (3 + 5 < y) {</span></div>' +
+        '<div>           return x + y * 5;</div>' +
+        '<div>       }</div>' +
+        '<div>    }</div>' +
+        '<div>}</div>'
+    ));
+});
