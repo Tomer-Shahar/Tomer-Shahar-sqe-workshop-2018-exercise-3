@@ -24,7 +24,7 @@ function create_flow_chart(input_code, user_input_args){
         '\n' +
         '\n' +
         '\n' +
-        'dec@>cond1({"stroke":"Green")@>cond2({"stroke":"Green")@>ass3({"stroke":"Green")@>e({"stroke":"Green")@>ret({"stroke":"Green")' +
+        'dec@>cond1({"stroke":"green"})@>cond2({"stroke":"green"})@>ass3({"stroke":"green"})@>e({"stroke":"green"})@>ret({"stroke":"green"})\n' +
         '\n';
 
     let chart = flowchart.parse(code);
