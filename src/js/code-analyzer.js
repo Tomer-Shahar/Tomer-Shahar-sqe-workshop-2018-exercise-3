@@ -28,9 +28,14 @@ const parseCode = (codeToParse) => {
     return [parsed_code, table];
 };
 
+function get_parsed_table(parsed_code, user_func){
+
+    input_code = user_func;
+    return generate_parsed_table(parsed_code);
+}
+
 function generate_parsed_table(parsed_code) {
     let table = [];
-
     let comp_function = expression_to_function[parsed_code.type];
 
     return table.concat(comp_function(parsed_code));
@@ -230,4 +235,4 @@ function generate_code_string(location){
     return rows[location.start.line-1].substring(location.start.column, location.end.column);
 }
 
-export {parseCode, generate_parsed_table};
+export {parseCode, generate_parsed_table, get_parsed_table};

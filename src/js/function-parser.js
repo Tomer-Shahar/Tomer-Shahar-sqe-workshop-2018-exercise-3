@@ -5,20 +5,30 @@
 
 import * as esprima from 'esprima';
 import * as substitutor from './symbol-substitution';
-import {generate_parsed_table, parseCode} from './code-analyzer';
+import {generate_parsed_table, get_parsed_table, parseCode} from './code-analyzer';
 
 let global_args;
 let input_args;
 let input_func;
+let local_arg_dict;
 
 const analyzed_code = (user_func, input_argument_values) => {
     input_func = user_func;
     let code_table = parseCode(input_func)[1];
     input_args = extract_arguments(input_argument_values);
     global_args = extract_global_arguments();
-    let local_arg_dict = create_local_arg_dict();
+    local_arg_dict = create_local_arg_dict();
     return substitutor.perform_substitution(input_args, global_args, local_arg_dict, input_func, code_table);
 };
+
+function get_args(user_func, input_argument_values){
+    input_func = user_func;
+    let code_table = parseCode(input_func)[1];
+    input_args = extract_arguments(input_argument_values);
+    global_args = extract_global_arguments();
+    local_arg_dict = create_local_arg_dict();
+    return [input_args, global_args, local_arg_dict];
+}
 
 // Function that extracts the arguments from the argument text box
 // returns each arg name and their input value.
@@ -237,7 +247,7 @@ function get_function_declaration(program_object) {
     program_object = program_object.body;
     for (let j = 0; j < program_object.length; j++) {
         if (program_object[j].type === 'FunctionDeclaration') {
-            return generate_parsed_table(program_object[j]);
+            return get_parsed_table(program_object[j], input_func);
         }
     }
 }
@@ -354,5 +364,5 @@ function clear_memory(){
     input_func = '';
 }
 
-export{analyzed_code, extract_arg_values, extract_arguments, extract_arg_names, extract_arg_types, extract_global_arguments,
+export{get_args, analyzed_code, extract_arg_values, extract_arguments, extract_arg_names, extract_arg_types, extract_global_arguments,
     get_function_declaration, create_local_arg_dict, extract_assignment, generate_assignment_array, clear_memory};

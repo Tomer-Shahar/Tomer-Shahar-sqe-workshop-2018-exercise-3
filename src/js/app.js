@@ -26,18 +26,13 @@ $(document).ready(function () {
 
         $('#diagram').text('');
 
-        let chart_and_settings = create_flow_chart(input_func, user_input_arguments);
-        let diagram = chart_and_settings[0];
-        let options = chart_and_settings[1];
-
-
-        diagram.drawSVG('diagram', options);
-
+        user_input_arguments = '1,2,3';
 
         if(input_func !== ''){
-            $('#codeOutput').empty();
-            let graph = create_flow_chart(input_func);
-            $('#codeOutput').append(graph);
+            let chart_and_settings = create_flow_chart(input_func, user_input_arguments);
+            let diagram = chart_and_settings[0];
+            let options = chart_and_settings[1];
+            diagram.drawSVG('diagram', options);
         }
 
 
