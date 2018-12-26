@@ -1,13 +1,11 @@
 import * as esprima from 'esprima';
-import * as flowchart from 'flowchart.js';
 import * as funcParser from './function-parser';
-import {extract_assignment} from './function-parser';
 
 let expression_to_function = {
     'Program' : compProgram,
     'FunctionDeclaration' : compFuncDec,
     'BlockStatement' : compBlockStatement,
-    'VariableDeclaration' : compVarDeclarationExp,
+    //'VariableDeclaration' : compVarDeclarationExp,
     'AssignmentExpression' : compAssignmentExp,
     'IfStatement' : compIfExp,
     'ReturnStatement' : compReturnExp,
@@ -41,32 +39,29 @@ function create_flow_chart(user_input_code, user_input_args){
     global_args = args[1];
     local_arg_dict = args[2];
     create_flowgraph_string(input_code);
-    let chart = flowchart.parse(flow_code);
-    let settings = get_settings();
 
-    return [chart, settings];
+    return flow_code;
 }
 
-function foo(){
-    return 'e=>end: |||||||||||\n' +
-        'dec=>operation: a = x + 1 \n b = a + x \n c = 0|truePath\n' +
-        'ass1=>operation: c = c + 5\n' +
-        'ass2=>operation: c = c + z + 5\n' +
-        'ass3=>operation: c = c + x + 5|truePath\n' +
-        'ret=>operation: return c|truePath\n' +
-        'cond1=>condition: b < z|truePath\n' +
-        'cond2=>condition: b < z * 2|truePath\n' +
-        '\n' +
-        'dec->cond1\n' +
-        'cond1(yes)->ass1\n' +
-        'cond1(no)->cond2\n' +
-        'cond2(no)->ass2\n' +
-        'ass2->e\n' +
-        'ass1->e\n' +
-        'cond2(yes, bottom)->ass3->e\n' +
-        'e->ret\n' +
-        'dec@>cond1({"stroke":"green"})@>cond2({"stroke":"green"})@>ass3({"stroke":"green"})@>e({"stroke":"green"})@>ret({"stroke":"green"})\n' +
-        '\n';
+function clear_memory(){
+    input_code = '';
+    input_args = '';
+    global_args = {};
+    local_arg_dict = {};
+    local_arg_indices = {};
+    state_count = 1;
+    in_true_path = false;
+
+    cond_count = 1; //conditions
+    op_count = 1; //operations
+    dec_count = 1; //declare
+    merge_count = 1; //merge states
+
+    flow_code = '';
+}
+
+function get_flow_code(){
+    return flow_code;
 }
 
 function create_flowgraph_string(input_func){
@@ -76,6 +71,11 @@ function create_flowgraph_string(input_func){
     }
 
     return  generate_chart(parsed_code);
+}
+
+function generate_chart(parsed_code, in_condition_block=false, args_to_decrement, prev_state){
+    let comp_function = expression_to_function[parsed_code.type];
+    return comp_function(parsed_code, in_condition_block, args_to_decrement, prev_state);
 }
 
 function add_edge_to_flow_chart(prev_state, state_name) {
@@ -105,7 +105,7 @@ function compIfExp(if_exp, in_condition_block, args_to_decrement, prev_state){
     clear_inner_block_args(args_to_decrement);
 
     in_true_path = !res; //condition was false, we'll enter the else-if or else.
-    if (if_exp.alternate.type==='IfStatement') // else_if
+    if ((if_exp.alternate !== null) && if_exp.alternate.type==='IfStatement') // else_if
         compElseIfExp(if_exp.alternate, state_name + '(no)');
     else{ //else
         args_to_decrement = [];
@@ -156,7 +156,7 @@ function compForExp(for_exp, in_condition_block, args_to_decrement, prev_state){
 }
 
 function compReturnExp(return_exp, in_condition_block, args_to_decrement, prev_state){
-    flow_code += 'ret=>operation: (' + state_count + ')\n return ' + generate_code_string(return_exp.argument.loc) + '|truePath\n';
+    flow_code = flow_code +  'ret=>operation: (' + state_count + ')\nreturn ' + generate_code_string(return_exp.argument.loc) + '|truePath\n';
     add_edge_to_flow_chart(prev_state, 'ret');
     return 'ret';
 }
@@ -177,12 +177,7 @@ function compWhileExp(while_exp, in_condition_block, args_to_decrement, prev_sta
     return result;
 }
 
-function generate_chart(parsed_code, in_condition_block=false, args_to_decrement, prev_state){
-    let comp_function = expression_to_function[parsed_code.type];
-    return comp_function(parsed_code, in_condition_block, args_to_decrement, prev_state);
-}
-
-function compVarDeclaratorExp(var_dec, in_condition_block, args_to_decrement, prev_state){
+function compVarDeclaratorExp(var_dec, in_condition_block, args_to_decrement){
 
     let result = '';
     if(var_dec.init) {
@@ -224,20 +219,21 @@ function compAssignmentExp(assignment_exp, in_condition_block, args_to_decrement
 
 function add_state_to_flow_chart(state_name, state_type, state_body){
     if(in_true_path)
-        flow_code += state_name + '=>' + state_type + ': (' + state_count + ')\n' + state_body + '|truePath\n';
+        flow_code = flow_code + state_name + '=>' + state_type + ': (' + state_count + ')\n' + state_body + '|truePath\n';
     else
-        flow_code += state_name + '=>' + state_type + ': (' + state_count + ')\n' + state_body + '\n';
+        flow_code = flow_code + state_name + '=>' + state_type + ': (' + state_count + ')\n' + state_body + '\n';
 
     state_count++;
 }
 
 function add_merge_to_flow_chart(){
     if(in_true_path)
-        flow_code += 'e' + merge_count + '=>end: |||||||||truePath\n';
+        flow_code = flow_code + 'e' + merge_count + '=>end: ------|truePath\n';
     else
-        flow_code += 'e' + merge_count + '=>end: ||||||||\n';
+        flow_code = flow_code + 'e' + merge_count + '=>end: ------\n';
 }
 
+/*
 function compVarDeclarationExp(var_dec_exp, in_condition_block, args_to_decrement, prev_state){
     //let state_name = 'dec' + dec_count;
     let dec_state = 'dec' + dec_count + '=>operation: (' + state_count + ')\n';
@@ -257,7 +253,7 @@ function compVarDeclarationExp(var_dec_exp, in_condition_block, args_to_decremen
         dec_state += '\n';
 
     flow_code += dec_state;
-}
+} */
 
 function create_declarator_state(decs, in_condition_block, args_to_decrement, prev_state) {
 
@@ -520,8 +516,8 @@ function extract_literal(expression){
 function extract_binary_exp(expression){
     let left,right;
 
-    left = extract_assignment(expression.left);
-    right = extract_assignment(expression.right);
+    left = funcParser.extract_assignment(expression.left);
+    right = funcParser.extract_assignment(expression.right);
     if(expression.operator === '*' || expression.operator === '/'){
         left = ['('].concat(left).concat(')');
         right = ['('].concat(right).concat(')');
@@ -641,4 +637,9 @@ function make_space(n){
     return space;
 }
 
-export{create_flow_chart};
+export{create_flow_chart, add_edge_to_flow_chart, add_merge_edge, parse_condition, add_state_to_flow_chart,
+    comp_binary_expression, compVarDeclaratorExp, sub_equation, check_member_expression,
+    generate_code_string, compBlockStatement, parse_for_inner_statement, make_space, concat_array_member_if_not_local,
+    clear_inner_block_args, create_flowgraph_string, compIfExp, compElseIfExp, sub_exp_to_array, add_merge_to_flow_chart
+    , compExpStatement, compWhileExp, get_flow_code, get_settings, clear_memory, compAssignmentExp, compReturnExp,
+    generate_chart, evaluate_expression};

@@ -1,5 +1,7 @@
 import $ from 'jquery';
-import {create_flow_chart} from './graph_creator';
+import {create_flow_chart, get_settings} from './graph_creator';
+import * as flowchart from 'flowchart.js';
+
 
 
 $(document).ready(function () {
@@ -8,31 +10,25 @@ $(document).ready(function () {
         let user_input_arguments = $('#inputArguments').val();
 
         input_func =
-            'function foo(x, y, z){\n' +
-            '    let a = x + 1;\n' +
-            '    let b = a + y;\n' +
-            '    let c = 0;\n' +
-            '    \n' +
-            '    if (b < z) {\n' +
-            '        c = c + 5;\n' +
-            '    } else if (b < z * 2) {\n' +
-            '        c = c + x + 5;\n' +
-            '    } else {\n' +
-            '        c = c + z + 5;\n' +
+            'function foo(x){\n' +
+            '    let a, b = 4;\n' +
+            '    let c = 3;\n' +
+            '    a = b + c\n' +
+            '    if(a < x){\n' +
+            '        a = 10\n' +
             '    }\n' +
-            '    \n' +
-            '    return c;\n' +
-            '}\n';
+            '    return a;\n' +
+            '}';
 
         $('#diagram').text('');
 
         user_input_arguments = '1,2,3';
 
         if(input_func !== ''){
-            let chart_and_settings = create_flow_chart(input_func, user_input_arguments);
-            let diagram = chart_and_settings[0];
-            let options = chart_and_settings[1];
-            diagram.drawSVG('diagram', options);
+            let chart = create_flow_chart(input_func, user_input_arguments);
+            let settings = get_settings();
+            let diagram = flowchart.parse(chart);
+            diagram.drawSVG('diagram', settings);
         }
 
 
