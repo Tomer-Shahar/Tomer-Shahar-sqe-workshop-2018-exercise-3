@@ -10,15 +10,22 @@ $(document).ready(function () {
         let user_input_arguments = $('#inputArguments').val();
 
         input_func =
-            'function foo(x){\n' +
-            '    let a, b = 4;\n' +
-            '    let c = 3;\n' +
-            '    a = b + c\n' +
-            '    if(a < x){\n' +
-            '        a = 10\n' +
+            'function foo(x, y, z){\n' +
+            '    let a = x + 1;\n' +
+            '    let b = a + y;\n' +
+            '    let c = 0;\n' +
+            '    \n' +
+            '    if (b < z) {\n' +
+            '        c = c + 5;\n' +
+            '    } else if (b < z * 2) {\n' +
+            '        c = c + x + 5;\n' +
+            '    } else {\n' +
+            '        c = c + z + 5;\n' +
             '    }\n' +
-            '    return a;\n' +
-            '}';
+            '    \n' +
+            '    b = a + x;\n' +
+            '    return c;\n' +
+            '}\n';
 
         $('#diagram').text('');
 

@@ -5,7 +5,7 @@ let expression_to_function = {
     'Program' : compProgram,
     'FunctionDeclaration' : compFuncDec,
     'BlockStatement' : compBlockStatement,
-    //'VariableDeclaration' : compVarDeclarationExp,
+    'VariableDeclaration' : compVarDeclarationExp,
     'AssignmentExpression' : compAssignmentExp,
     'IfStatement' : compIfExp,
     'ReturnStatement' : compReturnExp,
@@ -26,13 +26,12 @@ let in_true_path;
 
 let cond_count = 1; //conditions
 let op_count = 1; //operations
-let dec_count = 1; //declare
 let merge_count = 1; //merge states
 
 let flow_code = '';
 
 function create_flow_chart(user_input_code, user_input_args){
-    //code_table = parseCode(user_input_code)[1];
+    clear_memory();
     input_code = user_input_code;
     let args = funcParser.get_args(user_input_code, user_input_args);
     input_args = args[0];
@@ -54,7 +53,6 @@ function clear_memory(){
 
     cond_count = 1; //conditions
     op_count = 1; //operations
-    dec_count = 1; //declare
     merge_count = 1; //merge states
 
     flow_code = '';
@@ -84,7 +82,7 @@ function add_edge_to_flow_chart(prev_state, state_name) {
 }
 
 function add_merge_edge(prev_state){
-    flow_code += prev_state + '->e' + merge_count + '\n';
+    flow_code +=  prev_state + '->e' + merge_count + '\n';
 }
 
 function compIfExp(if_exp, in_condition_block, args_to_decrement, prev_state){
@@ -104,10 +102,15 @@ function compIfExp(if_exp, in_condition_block, args_to_decrement, prev_state){
     add_merge_edge(last_state);
     clear_inner_block_args(args_to_decrement);
 
-    in_true_path = !res; //condition was false, we'll enter the else-if or else.
-    if ((if_exp.alternate !== null) && if_exp.alternate.type==='IfStatement') // else_if
+    if(if_exp.alternate === null) { //Code just continues
+        add_merge_edge(state_name + '(no)');
+    }
+    else if (if_exp.alternate.type === 'IfStatement') { // else_if
+        in_true_path = !res; //condition was false, we'll enter the else-if or else.
         compElseIfExp(if_exp.alternate, state_name + '(no)');
-    else{ //else
+    }
+    else {
+        in_true_path = !res; //condition was false, we'll enter the else-if or else.
         args_to_decrement = [];
         last_state = generate_chart(if_exp.alternate, true, args_to_decrement, state_name + '(no)');
         clear_inner_block_args(args_to_decrement);
@@ -127,18 +130,81 @@ function compElseIfExp(else_if_exp, prev_state){
 
     in_true_path = in_true_path && res;
     let last_state = generate_chart(else_if_exp.consequent, true, args_to_decrement, state_name + '(yes)');
+    //add_edge_to_flow_chart(state_name + '(yes)', last_state); //adds the cond1->op2
     add_merge_edge(last_state);
     clear_inner_block_args(args_to_decrement);
 
-    in_true_path = !res; //condition was false, we'll enter the else-if or else.
-    if (else_if_exp.alternate.type==='IfStatement') // else-if
+    if(else_if_exp.alternate === null) { //Code just continues
+        add_merge_edge(state_name + '(no)');
+    }
+    else if (else_if_exp.alternate.type === 'IfStatement') { // else_if
+        in_true_path = !res; //condition was false, we'll enter the else-if or else.
         compElseIfExp(else_if_exp.alternate, state_name + '(no)');
-    else { //else
+    }
+    else {
+        in_true_path = !res; //condition was false, we'll enter the else-if or else.
         args_to_decrement = [];
         last_state = generate_chart(else_if_exp.alternate, true, args_to_decrement, state_name + '(no)');
         clear_inner_block_args(args_to_decrement);
         add_merge_edge(last_state);
     }
+}
+
+function compWhileExp(while_exp, in_condition_block, args_to_decrement, prev_state){
+
+    let condition = sub_equation(generate_code_string(while_exp.test.loc));
+    let res = evaluate_expression(condition);
+    let null_state = 'op' + op_count;
+    op_count++;
+    if(!args_to_decrement)
+        args_to_decrement = [];
+    add_state_to_flow_chart(null_state, 'operation', 'NULL'); // add the NULL state
+    add_edge_to_flow_chart(prev_state, null_state); //a = x +1 -> NULL
+
+    let cond_state = 'cond' + cond_count;
+    add_state_to_flow_chart(cond_state, 'condition', generate_code_string(while_exp.test.loc));
+    add_edge_to_flow_chart(null_state, cond_state);
+
+    in_true_path = in_true_path && res;
+    let body_state = generate_chart(while_exp.body, true, args_to_decrement, cond_state + '(yes)');
+    add_edge_to_flow_chart(body_state, null_state);
+    clear_inner_block_args();
+
+    return cond_state + '(no)';
+}
+
+function not_condition_expression(type) {
+    return type !== 'IfStatement' && type !== 'ForStatement' && type !== 'WhileStatement';
+}
+
+function compBlockStatement(block_exp, in_condition_block, args_to_decrement, prev_state){
+    let curr_state_name;
+    let curr_state_body = '';
+    for(let i=0; i<block_exp.body.length; i++){
+        let code = block_exp.body[i];
+        if(not_condition_expression(code.type)){
+            curr_state_body += generate_chart(code, in_condition_block, args_to_decrement, prev_state);
+        }
+        else{ //condition block. Add new state to the chart.
+            curr_state_name = 'op' + op_count;
+            op_count++;
+            add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
+            add_edge_to_flow_chart(prev_state, curr_state_name);
+            generate_chart(code, in_condition_block, args_to_decrement, curr_state_name);
+            curr_state_body = '';
+            curr_state_name = '';
+            prev_state = 'e' + (merge_count-1);
+            in_true_path = true;
+        }
+    }
+    if(curr_state_body !== ''){ // Flush state
+        curr_state_name = 'op' + op_count;
+        op_count++;
+        add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
+        add_edge_to_flow_chart(prev_state, curr_state_name);
+    }
+    if(in_condition_block)
+        return curr_state_name;
 }
 
 function compForExp(for_exp, in_condition_block, args_to_decrement, prev_state){
@@ -156,25 +222,8 @@ function compForExp(for_exp, in_condition_block, args_to_decrement, prev_state){
 }
 
 function compReturnExp(return_exp, in_condition_block, args_to_decrement, prev_state){
-    flow_code = flow_code +  'ret=>operation: (' + state_count + ')\nreturn ' + generate_code_string(return_exp.argument.loc) + '|truePath\n';
-    add_edge_to_flow_chart(prev_state, 'ret');
-    return 'ret';
-}
-
-function compWhileExp(while_exp, in_condition_block, args_to_decrement, prev_state){
-
-    if(!args_to_decrement)
-        args_to_decrement = [];
-    let condition = sub_equation(generate_code_string(while_exp.test.loc));
-    let result = '<div>' + make_space(while_exp.loc.start.column) + 'while (' + condition + '){</div>';
-    let while_body = generate_chart(while_exp.body, true, args_to_decrement, prev_state);
-    result =
-        result +
-        while_body +
-        '<div>' + make_space(while_exp.loc.start.column) + '}</div>';
-
-    clear_inner_block_args();
-    return result;
+    let state_body = generate_code_string(return_exp.argument.loc);
+    return 'return ' + state_body;
 }
 
 function compVarDeclaratorExp(var_dec, in_condition_block, args_to_decrement){
@@ -200,11 +249,8 @@ function compAssignmentExp(assignment_exp, in_condition_block, args_to_decrement
 
     let arg_name = assignment_exp.left.name;
     let new_val = get_updated_arg_value(arg_name, assignment_exp.right);
-    let state_name = 'op' + op_count;
-    op_count ++;
-    let state_body = comp_binary_expression(assignment_exp.right).join(' ');
-    add_state_to_flow_chart(state_name, 'operation',  arg_name + ' = ' + state_body);
-    add_edge_to_flow_chart(prev_state, state_name);
+    let state_body = comp_binary_expression(assignment_exp.right);
+    state_body = remove_zeros_and_brackets_from_array(state_body).join(' ');
 
     if(arg_name in local_arg_dict){
         if(in_condition_block){
@@ -214,46 +260,36 @@ function compAssignmentExp(assignment_exp, in_condition_block, args_to_decrement
         let index = local_arg_indices[arg_name];
         local_arg_dict[arg_name][index].value = new_val;
     }
-    return state_name;
+    return arg_name + ' = ' + state_body + '\n';
 }
 
 function add_state_to_flow_chart(state_name, state_type, state_body){
     if(in_true_path)
-        flow_code = flow_code + state_name + '=>' + state_type + ': (' + state_count + ')\n' + state_body + '|truePath\n';
+        flow_code = state_name + '=>' + state_type + ': (' + state_count + ')\n' + state_body + '|truePath\n' + flow_code;
     else
-        flow_code = flow_code + state_name + '=>' + state_type + ': (' + state_count + ')\n' + state_body + '\n';
+        flow_code = state_name + '=>' + state_type + ': (' + state_count + ')\n' + state_body + '\n' + flow_code;
 
     state_count++;
 }
 
+
 function add_merge_to_flow_chart(){
     if(in_true_path)
-        flow_code = flow_code + 'e' + merge_count + '=>end: ------|truePath\n';
+        flow_code = 'e' + merge_count + '=>end: ------|truePath\n' + flow_code;
     else
-        flow_code = flow_code + 'e' + merge_count + '=>end: ------\n';
+        flow_code = 'e' + merge_count + '=>end: ------\n' + flow_code;
 }
 
-/*
-function compVarDeclarationExp(var_dec_exp, in_condition_block, args_to_decrement, prev_state){
-    //let state_name = 'dec' + dec_count;
-    let dec_state = 'dec' + dec_count + '=>operation: (' + state_count + ')\n';
-    dec_count++;
+function compVarDeclarationExp(var_dec_exp, in_condition_block, args_to_decrement){
+    let dec_body = '';
 
     for(let i = 0; i < var_dec_exp.declarations.length; i++) {
         let v_code = var_dec_exp.declarations[i];
 
-        dec_state += compVarDeclaratorExp(v_code, in_condition_block, args_to_decrement);
-        if(i < var_dec_exp.declarations.length - 1){
-            dec_state += '\n';
-        }
+        dec_body += compVarDeclaratorExp(v_code, in_condition_block, args_to_decrement) + '\n';
     }
-    if(in_true_path)
-        dec_state += '|truePath\n';
-    else
-        dec_state += '\n';
-
-    flow_code += dec_state;
-} */
+    return dec_body;
+}
 
 function create_declarator_state(decs, in_condition_block, args_to_decrement, prev_state) {
 
@@ -283,25 +319,6 @@ function get_var_decs_in_block_exp(block_exp) {
         }
     }
     return decs;
-}
-
-function compBlockStatement(block_exp, in_condition_block, args_to_decrement, prev_state){
-    let last_statement;
-    let decs = get_var_decs_in_block_exp(block_exp);
-    if(decs.length > 0)
-        prev_state = create_declarator_state(decs, in_condition_block, args_to_decrement, prev_state);
-
-    for(let i=0; i<block_exp.body.length; i++){
-        let code = block_exp.body[i];
-        if(code.type === 'VariableDeclaration')
-            continue;
-        last_statement = generate_chart(code, in_condition_block, args_to_decrement, prev_state);
-        if(code.type === 'IfStatement'){ //We just left the if statement
-            prev_state = 'e' + (merge_count-1);
-        }
-    }
-    if(in_condition_block)
-        return last_statement;
 }
 
 function get_settings(){
@@ -341,7 +358,7 @@ function compUpdateExpression(update_exp){
         else
             global_args[name] -= 1;
     }
-    flow_code += 'op' + op_count + '=>operation: ' + name + op + '\n';
+    return name + op + '\n';
 }
 
 function parse_for_inner_statement(inner_statement){
