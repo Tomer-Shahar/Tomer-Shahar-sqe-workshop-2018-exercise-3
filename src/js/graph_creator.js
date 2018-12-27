@@ -180,12 +180,13 @@ function not_condition_expression(type) {
 function compBlockStatement(block_exp, in_condition_block, args_to_decrement, prev_state){
     let curr_state_name;
     let curr_state_body = '';
+    let was_true = in_true_path;
     for(let i=0; i<block_exp.body.length; i++){
         let code = block_exp.body[i];
         if(not_condition_expression(code.type)){
             curr_state_body += generate_chart(code, in_condition_block, args_to_decrement, prev_state);
         }
-        else{ //condition block. Add new state to the chart.
+        else if(code.type === 'IfStatement'){ //condition block. Add new state to the chart
             curr_state_name = 'op' + op_count;
             op_count++;
             add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
@@ -194,7 +195,17 @@ function compBlockStatement(block_exp, in_condition_block, args_to_decrement, pr
             curr_state_body = '';
             curr_state_name = '';
             prev_state = 'e' + (merge_count-1);
-            in_true_path = true;
+            in_true_path = was_true;
+        }
+        else{ //for or while
+            curr_state_name = 'op' + op_count;
+            op_count++;
+            add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
+            add_edge_to_flow_chart(prev_state, curr_state_name);
+            prev_state = generate_chart(code, in_condition_block, args_to_decrement, curr_state_name);
+            curr_state_body = '';
+            curr_state_name = '';
+            in_true_path = was_true;
         }
     }
     if(curr_state_body !== ''){ // Flush state
@@ -209,16 +220,25 @@ function compBlockStatement(block_exp, in_condition_block, args_to_decrement, pr
 
 function compForExp(for_exp, in_condition_block, args_to_decrement, prev_state){
     let inner_statement = input_code.split('\n')[for_exp.loc.start.line-1]; // "let i=0; i < c+x; i = i+1"
-    if(!args_to_decrement)
-        args_to_decrement = [];
     inner_statement = inner_statement.substring(for_exp.init.loc.start.column, for_exp.update.loc.end.column);
-    inner_statement = parse_for_inner_statement(inner_statement);
-    let result = '<div>' + make_space(for_exp.loc.start.column) + 'for (' + inner_statement + '){</div>';
-    result = result +
-        generate_chart(for_exp.body, true, args_to_decrement) +
-        '<div>' + make_space(for_exp.loc.start.column) + '}</div>';
+
+    let null_state = 'op' + op_count;
+    op_count++;
+    if(!args_to_decrement) {
+        args_to_decrement = [];
+    }
+    add_state_to_flow_chart(null_state, 'operation', 'NULL'); // add the NULL state
+    add_edge_to_flow_chart(prev_state, null_state); //a = x +1 -> NULL
+
+    let cond_state = 'cond' + cond_count;
+    add_state_to_flow_chart(cond_state, 'condition', inner_statement);
+    add_edge_to_flow_chart(null_state, cond_state);
+
+    //inner_statement = parse_for_inner_statement(inner_statement);
+    let body_state = generate_chart(for_exp.body, true, args_to_decrement, cond_state + '(yes)');
+    add_edge_to_flow_chart(body_state, null_state);
     clear_inner_block_args();
-    return result;
+    return cond_state + '(no)';
 }
 
 function compReturnExp(return_exp, in_condition_block, args_to_decrement, prev_state){

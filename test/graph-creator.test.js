@@ -164,3 +164,47 @@ it('9 - gitlab example flow chart', ()=> {
         )
     );
 });
+
+it('10 - chart with while loop', ()=> {
+    gc.clear_memory();
+    let chart = gc.create_flow_chart(
+        'function foo(x, y, z){\n' +
+        '   let a = x + 1;\n' +
+        '   let b = a + y;\n' +
+        '   let c = 0;\n' +
+        '   \n' +
+        '   while (a < z) {\n' +
+        '       c = a + b;\n' +
+        '       z = c * 2;\n' +
+        '       a++;\n' +
+        '   }\n' +
+        '   \n' +
+        '   return z;\n' +
+        '}\n', '10,2,3');
+    assert.equal(
+        JSON.stringify(chart),
+        JSON.stringify(
+            'op4=>operation: (5)\n' +
+            'return z|truePath\n' +
+            'op3=>operation: (4)\n' +
+            'c = a + b\n' +
+            'z = c * 2\n' +
+            'a++\n' +
+            '\n' +
+            'cond1=>condition: (3)\n' +
+            'a < z|truePath\n' +
+            'op2=>operation: (2)\n' +
+            'NULL|truePath\n' +
+            'op1=>operation: (1)\n' +
+            'a = x + 1\n' +
+            'b = a + y\n' +
+            'c = 0\n' +
+            '|truePath\n' +
+            'op1->op2\n' +
+            'op2->cond1\n' +
+            'cond1(yes)->op3\n' +
+            'op3->op2\n' +
+            'cond1(no)->op4\n'
+        )
+    );
+});
