@@ -208,3 +208,276 @@ it('10 - chart with while loop', ()=> {
         )
     );
 });
+
+it('11 - chart with loop inside if', ()=> {
+    gc.clear_memory();
+    let chart = gc.create_flow_chart(
+        'function foo(x, y, z){\n' +
+        '    let a = x + 1;\n' +
+        '    let b = a + y;\n' +
+        '    let c = 0;\n' +
+        '    \n' +
+        '    if (b < z) {\n' +
+        '        c = c + 5;\n' +
+        '        for(let i=0; i < c; i++){\n' +
+        '            a = a + 1;\n' +
+        '       }\n' +
+        '    } else if (b < z * 2) {\n' +
+        '        c = c + x + 5;\n' +
+        '    }\n' +
+        ' \n' +
+        '    return c;\n' +
+        '}', '1,2,10');
+    assert.equal(
+        JSON.stringify(chart),
+        JSON.stringify(
+            'op6=>operation: (9)\n' +
+            'return c|truePath\n' +
+            'op5=>operation: (8)\n' +
+            'c = c + x + 5\n' +
+            '\n' +
+            'cond3=>condition: (7)\n' +
+            'b < z * 2\n' +
+            'op4=>operation: (6)\n' +
+            'a = a + 1\n' +
+            '|truePath\n' +
+            'cond2=>condition: (5)\n' +
+            'let i=0; i < c; i++|truePath\n' +
+            'op3=>operation: (4)\n' +
+            'NULL|truePath\n' +
+            'op2=>operation: (3)\n' +
+            'c = c + 5\n' +
+            '|truePath\n' +
+            'e1=>end: ------|truePath\n' +
+            'cond1=>condition: (2)\n' +
+            'b < z|truePath\n' +
+            'op1=>operation: (1)\n' +
+            'a = x + 1\n' +
+            'b = a + y\n' +
+            'c = 0\n' +
+            '|truePath\n' +
+            'op1->cond1\n' +
+            'cond1(yes)->op2\n' +
+            'op2->op3\n' +
+            'op3->cond2\n' +
+            'cond2(yes)->op4\n' +
+            'op4->op3\n' +
+            'cond2(no)->e1\n' +
+            'cond1(no)->cond3\n' +
+            'cond3(yes)->op5\n' +
+            'op5->e1\n' +
+            'cond3(no)->e1\n' +
+            'e1->op6\n'
+        )
+    );
+});
+
+it('12 - chart with if inside if, outer and inner if are both true', ()=> {
+    gc.clear_memory();
+    let chart = gc.create_flow_chart(
+        'function foo(x, y, z){\n' +
+        '    let a = x;\n' +
+        '    let b = a + y;\n' +
+        '    let c = 0;\n' +
+        '    \n' +
+        '    if (b < z) {\n' + //true
+        '        c = c + 5;\n' +
+        '        if(a < b){\n' + //true
+        '               c = x;\n' +
+        '               a++;\n' +
+        '        }\n' +
+        '    } else if (b < z * 2) {\n' + //false
+        '        c = c + x + 5;\n' +
+        '    } else {\n' +  //false
+        '        c = c + z + 5;\n' +
+        '    }\n' +
+        '    \n' +
+        '    return c;\n' +
+        '}', '1, 3, 10');
+    assert.equal(
+        JSON.stringify(chart),
+        JSON.stringify(
+            'op6=>operation: (9)\n' +
+            'return c|truePath\n' +
+            'op5=>operation: (8)\n' +
+            'c = c + z + 5\n' +
+            '\n' +
+            'op4=>operation: (7)\n' +
+            'c = c + x + 5\n' +
+            '\n' +
+            'cond3=>condition: (6)\n' +
+            'b < z * 2\n' +
+            'op3=>operation: (5)\n' +
+            'c = x\n' +
+            'a++\n' +
+            '|truePath\n' +
+            'e1=>end: ------|truePath\n' +
+            'cond2=>condition: (4)\n' +
+            'a < b|truePath\n' +
+            'op2=>operation: (3)\n' +
+            'c = c + 5\n' +
+            '|truePath\n' +
+            'e1=>end: ------|truePath\n' +
+            'cond1=>condition: (2)\n' +
+            'b < z|truePath\n' +
+            'op1=>operation: (1)\n' +
+            'a = x\n' +
+            'b = a + y\n' +
+            'c = 0\n' +
+            '|truePath\n' +
+            'op1->cond1\n' +
+            'cond1(yes)->op2\n' +
+            'op2->cond2\n' +
+            'cond2(yes)->op3\n' +
+            'op3->e1\n' +
+            'cond2(no)->e1\n' +
+            'cond2(no)->e1\n' +
+            'cond1(no)->cond3\n' +
+            'cond3(yes)->op4\n' +
+            'op4->e1\n' +
+            'cond3(no)->op5\n' +
+            'op5->e1\n' +
+            'e1->op6\n'
+        )
+    );
+});
+
+it('12 - chart with if inside if, outer if is true and inner is false', ()=> {
+    gc.clear_memory();
+    let chart = gc.create_flow_chart(
+        'function foo(x, y, z){\n' +
+        '    let a = x;\n' +
+        '    let b = a + y;\n' +
+        '    let c = 0;\n' +
+        '    \n' +
+        '    if (b < z) {\n' + //true
+        '        c = c + 5;\n' +
+        '        if(a < b){\n' + //true
+        '               c = x;\n' +
+        '               a++;\n' +
+        '        }\n' +
+        '    } else if (b < z * 2) {\n' + //false
+        '        c = c + x + 5;\n' +
+        '    } else {\n' +  //false
+        '        c = c + z + 5;\n' +
+        '    }\n' +
+        '    \n' +
+        '    return c;\n' +
+        '}', '1, -3, 10');
+    assert.equal(
+        JSON.stringify(chart),
+        JSON.stringify(
+            'op6=>operation: (9)\n' +
+            'return c|truePath\n' +
+            'op5=>operation: (8)\n' +
+            'c = c + z + 5\n' +
+            '\n' +
+            'op4=>operation: (7)\n' +
+            'c = c + x + 5\n' +
+            '\n' +
+            'cond3=>condition: (6)\n' +
+            'b < z * 2\n' +
+            'op3=>operation: (5)\n' +
+            'c = x\n' +
+            'a++\n' +
+            '\n' +
+            'e1=>end: ------|truePath\n' +
+            'cond2=>condition: (4)\n' +
+            'a < b|truePath\n' +
+            'op2=>operation: (3)\n' +
+            'c = c + 5\n' +
+            '|truePath\n' +
+            'e1=>end: ------|truePath\n' +
+            'cond1=>condition: (2)\n' +
+            'b < z|truePath\n' +
+            'op1=>operation: (1)\n' +
+            'a = x\n' +
+            'b = a + y\n' +
+            'c = 0\n' +
+            '|truePath\n' +
+            'op1->cond1\n' +
+            'cond1(yes)->op2\n' +
+            'op2->cond2\n' +
+            'cond2(yes)->op3\n' +
+            'op3->e1\n' +
+            'cond2(no)->e1\n' +
+            'cond2(no)->e1\n' +
+            'cond1(no)->cond3\n' +
+            'cond3(yes)->op4\n' +
+            'op4->e1\n' +
+            'cond3(no)->op5\n' +
+            'op5->e1\n' +
+            'e1->op6\n'
+        )
+    );
+});
+
+it('13 - chart with if inside if, outer if is false, inner is true and else-if is true', ()=> {
+    gc.clear_memory();
+    let chart = gc.create_flow_chart(
+        'function foo(x, y, z){\n' +
+        '    let a = x;\n' +
+        '    let b = y;\n' +
+        '    let c = 0;\n' +
+        '    \n' +
+        '    if (b < z) {\n' + //true
+        '        c = c + 5;\n' +
+        '        if(a < b){\n' + //true
+        '               c = x;\n' +
+        '               a++;\n' +
+        '        }\n' +
+        '    } else if (b < 100) {\n' + //false
+        '        c = c + x + 5;\n' +
+        '    } else {\n' +  //false
+        '        c = c + z + 5;\n' +
+        '    }\n' +
+        '    \n' +
+        '    return c;\n' +
+        '}', '1, 3, -10');
+    assert.equal(
+        JSON.stringify(chart),
+        JSON.stringify(
+            'op6=>operation: (9)\n' +
+            'return c|truePath\n' +
+            'op5=>operation: (8)\n' +
+            'c = c + z + 5\n' +
+            '\n' +
+            'op4=>operation: (7)\n' +
+            'c = c + x + 5\n' +
+            '|truePath\n' +
+            'cond3=>condition: (6)\n' +
+            'b < 100|truePath\n' +
+            'op3=>operation: (5)\n' +
+            'c = x\n' +
+            'a++\n' +
+            '\n' +
+            'e1=>end: ------\n' +
+            'cond2=>condition: (4)\n' +
+            'a < b\n' +
+            'op2=>operation: (3)\n' +
+            'c = c + 5\n' +
+            '\n' +
+            'e1=>end: ------|truePath\n' +
+            'cond1=>condition: (2)\n' +
+            'b < z|truePath\n' +
+            'op1=>operation: (1)\n' +
+            'a = x\n' +
+            'b = y\n' +
+            'c = 0\n' +
+            '|truePath\n' +
+            'op1->cond1\n' +
+            'cond1(yes)->op2\n' +
+            'op2->cond2\n' +
+            'cond2(yes)->op3\n' +
+            'op3->e1\n' +
+            'cond2(no)->e1\n' +
+            'cond2(no)->e1\n' +
+            'cond1(no)->cond3\n' +
+            'cond3(yes)->op4\n' +
+            'op4->e1\n' +
+            'cond3(no)->op5\n' +
+            'op5->e1\n' +
+            'e1->op6\n'
+        )
+    );
+});

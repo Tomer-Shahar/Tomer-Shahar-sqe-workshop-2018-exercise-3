@@ -85,6 +85,30 @@ function add_merge_edge(prev_state){
     flow_code +=  prev_state + '->e' + merge_count + '\n';
 }
 
+function check_if_increment_merge_count(in_condition_block) {
+    if (!in_condition_block)
+        merge_count++;
+}
+
+function check_if_can_clear_inner_args(in_condition_block, args_to_decrement) {
+    if (!in_condition_block)
+        clear_inner_block_args(args_to_decrement);
+}
+
+function add_state_edge_and_merge(state_name, if_exp, prev_state) {
+    add_state_to_flow_chart(state_name, 'condition', generate_code_string(if_exp.test.loc));
+    add_edge_to_flow_chart(prev_state, state_name);
+    add_merge_to_flow_chart();
+}
+
+function generate_else_body(res, args_to_decrement, last_state, if_exp, state_name) {
+    in_true_path = !res; //condition was false, we'll enter the else-if or else.
+    args_to_decrement = [];
+    last_state = generate_chart(if_exp.alternate, true, args_to_decrement, state_name + '(no)');
+    clear_inner_block_args(args_to_decrement);
+    add_merge_edge(last_state);
+}
+
 function compIfExp(if_exp, in_condition_block, args_to_decrement, prev_state){
 
     let condition = sub_equation(generate_code_string(if_exp.test.loc));
@@ -93,44 +117,28 @@ function compIfExp(if_exp, in_condition_block, args_to_decrement, prev_state){
     cond_count++;
     if(!args_to_decrement)
         args_to_decrement = [];
-    add_state_to_flow_chart(state_name, 'condition', generate_code_string(if_exp.test.loc));
-    add_edge_to_flow_chart(prev_state, state_name);
-    add_merge_to_flow_chart();
-
+    add_state_edge_and_merge(state_name, if_exp, prev_state);
     in_true_path = in_true_path && res;
     let last_state = generate_chart(if_exp.consequent, true, args_to_decrement, state_name + '(yes)' ); // inner if block
     add_merge_edge(last_state);
-    clear_inner_block_args(args_to_decrement);
-
+    check_if_can_clear_inner_args(in_condition_block, args_to_decrement);
     if(if_exp.alternate === null) { //Code just continues
-        add_merge_edge(state_name + '(no)');
-    }
+        add_merge_edge(state_name + '(no)');    }
     else if (if_exp.alternate.type === 'IfStatement') { // else_if
         in_true_path = !res; //condition was false, we'll enter the else-if or else.
-        compElseIfExp(if_exp.alternate, state_name + '(no)');
-    }
+        compElseIfExp(if_exp.alternate, state_name + '(no)');    }
     else {
-        in_true_path = !res; //condition was false, we'll enter the else-if or else.
-        args_to_decrement = [];
-        last_state = generate_chart(if_exp.alternate, true, args_to_decrement, state_name + '(no)');
-        clear_inner_block_args(args_to_decrement);
-        add_merge_edge(last_state);
-    }
-    merge_count++;
+        generate_else_body(res, args_to_decrement, last_state, if_exp, state_name);    }
+    check_if_increment_merge_count(in_condition_block);    return state_name + '(no)';
 }
 
 function compElseIfExp(else_if_exp, prev_state){
-    let args_to_decrement = [];
-    let condition = sub_equation(generate_code_string(else_if_exp.test.loc));
-    let res = evaluate_expression(condition);
-    let state_name = 'cond' + cond_count;
-    cond_count++;
+    let args_to_decrement = [];    let condition = sub_equation(generate_code_string(else_if_exp.test.loc));    let res = evaluate_expression(condition);
+    let state_name = 'cond' + cond_count;    cond_count++;
     add_state_to_flow_chart(state_name, 'condition', generate_code_string(else_if_exp.test.loc));
     add_edge_to_flow_chart(prev_state, state_name);
-
     in_true_path = in_true_path && res;
     let last_state = generate_chart(else_if_exp.consequent, true, args_to_decrement, state_name + '(yes)');
-    //add_edge_to_flow_chart(state_name + '(yes)', last_state); //adds the cond1->op2
     add_merge_edge(last_state);
     clear_inner_block_args(args_to_decrement);
 
@@ -139,37 +147,28 @@ function compElseIfExp(else_if_exp, prev_state){
     }
     else if (else_if_exp.alternate.type === 'IfStatement') { // else_if
         in_true_path = !res; //condition was false, we'll enter the else-if or else.
-        compElseIfExp(else_if_exp.alternate, state_name + '(no)');
-    }
+        compElseIfExp(else_if_exp.alternate, state_name + '(no)');    }
     else {
-        in_true_path = !res; //condition was false, we'll enter the else-if or else.
-        args_to_decrement = [];
-        last_state = generate_chart(else_if_exp.alternate, true, args_to_decrement, state_name + '(no)');
-        clear_inner_block_args(args_to_decrement);
-        add_merge_edge(last_state);
-    }
+        generate_else_body(res, args_to_decrement, last_state, else_if_exp, state_name);    }
+    return state_name  + '(no)';
 }
 
 function compWhileExp(while_exp, in_condition_block, args_to_decrement, prev_state){
 
     let condition = sub_equation(generate_code_string(while_exp.test.loc));
-    let res = evaluate_expression(condition);
-    let null_state = 'op' + op_count;
+    let res = evaluate_expression(condition);    let null_state = 'op' + op_count;
     op_count++;
-    if(!args_to_decrement)
-        args_to_decrement = [];
+    args_to_decrement = [];
     add_state_to_flow_chart(null_state, 'operation', 'NULL'); // add the NULL state
     add_edge_to_flow_chart(prev_state, null_state); //a = x +1 -> NULL
-
     let cond_state = 'cond' + cond_count;
     add_state_to_flow_chart(cond_state, 'condition', generate_code_string(while_exp.test.loc));
     add_edge_to_flow_chart(null_state, cond_state);
-
+    cond_count++;
     in_true_path = in_true_path && res;
     let body_state = generate_chart(while_exp.body, true, args_to_decrement, cond_state + '(yes)');
     add_edge_to_flow_chart(body_state, null_state);
     clear_inner_block_args();
-
     return cond_state + '(no)';
 }
 
@@ -177,43 +176,69 @@ function not_condition_expression(type) {
     return type !== 'IfStatement' && type !== 'ForStatement' && type !== 'WhileStatement';
 }
 
+function flush_current_body(curr_state_body, curr_state_name, prev_state) {
+    if (curr_state_body !== '') { // Flush state
+        curr_state_name = 'op' + op_count;
+        op_count++;
+        add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
+        add_edge_to_flow_chart(prev_state, curr_state_name);
+    }
+    return curr_state_name;
+}
+
+function generate_loop_graph(curr_state_name, curr_state_body, prev_state, code, in_condition_block, args_to_decrement, was_true) {
+    curr_state_name = 'op' + op_count;
+    op_count++;
+    add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
+    add_edge_to_flow_chart(prev_state, curr_state_name);
+    curr_state_name = generate_chart(code, in_condition_block, args_to_decrement, curr_state_name);
+    prev_state = curr_state_name;
+    curr_state_body = '';
+    in_true_path = was_true;
+    return {curr_state_name, curr_state_body, prev_state};
+}
+
+function generate_if_statement_graph(curr_state_name, curr_state_body, prev_state, code, in_condition_block, args_to_decrement, was_true) {
+    if(curr_state_body !== ''){
+        curr_state_name = 'op' + op_count;
+        op_count++;
+        add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
+        add_edge_to_flow_chart(prev_state, curr_state_name);
+    }
+    let last_state;
+    last_state = generate_chart(code, in_condition_block, args_to_decrement, curr_state_name);
+
+    curr_state_name = '';
+    prev_state = 'e' + (merge_count - 1);
+    in_true_path = was_true;
+    return {curr_state_name, prev_state, last_state};
+}
+
 function compBlockStatement(block_exp, in_condition_block, args_to_decrement, prev_state){
-    let curr_state_name;
+    let curr_state_name='';
     let curr_state_body = '';
     let was_true = in_true_path;
+
     for(let i=0; i<block_exp.body.length; i++){
         let code = block_exp.body[i];
         if(not_condition_expression(code.type)){
             curr_state_body += generate_chart(code, in_condition_block, args_to_decrement, prev_state);
         }
         else if(code.type === 'IfStatement'){ //condition block. Add new state to the chart
-            curr_state_name = 'op' + op_count;
-            op_count++;
-            add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
-            add_edge_to_flow_chart(prev_state, curr_state_name);
-            generate_chart(code, in_condition_block, args_to_decrement, curr_state_name);
+            const __ret = generate_if_statement_graph(curr_state_name, curr_state_body, prev_state, code, in_condition_block, args_to_decrement, was_true);
+            curr_state_name = __ret.curr_state_name;
+            prev_state = __ret.prev_state;
             curr_state_body = '';
-            curr_state_name = '';
-            prev_state = 'e' + (merge_count-1);
-            in_true_path = was_true;
+            let last_state = __ret.last_state;
+            if(in_condition_block)
+                return last_state;
         }
         else{ //for or while
-            curr_state_name = 'op' + op_count;
-            op_count++;
-            add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
-            add_edge_to_flow_chart(prev_state, curr_state_name);
-            prev_state = generate_chart(code, in_condition_block, args_to_decrement, curr_state_name);
-            curr_state_body = '';
-            curr_state_name = '';
-            in_true_path = was_true;
+            const __ret = generate_loop_graph(curr_state_name, curr_state_body, prev_state, code, in_condition_block, args_to_decrement, was_true);
+            curr_state_name = __ret.curr_state_name;            curr_state_body = __ret.curr_state_body;            prev_state = __ret.prev_state;
         }
     }
-    if(curr_state_body !== ''){ // Flush state
-        curr_state_name = 'op' + op_count;
-        op_count++;
-        add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
-        add_edge_to_flow_chart(prev_state, curr_state_name);
-    }
+    curr_state_name = flush_current_body(curr_state_body, curr_state_name, prev_state);
     if(in_condition_block)
         return curr_state_name;
 }
@@ -221,27 +246,22 @@ function compBlockStatement(block_exp, in_condition_block, args_to_decrement, pr
 function compForExp(for_exp, in_condition_block, args_to_decrement, prev_state){
     let inner_statement = input_code.split('\n')[for_exp.loc.start.line-1]; // "let i=0; i < c+x; i = i+1"
     inner_statement = inner_statement.substring(for_exp.init.loc.start.column, for_exp.update.loc.end.column);
-
     let null_state = 'op' + op_count;
     op_count++;
-    if(!args_to_decrement) {
-        args_to_decrement = [];
-    }
+    args_to_decrement = [];
     add_state_to_flow_chart(null_state, 'operation', 'NULL'); // add the NULL state
     add_edge_to_flow_chart(prev_state, null_state); //a = x +1 -> NULL
-
     let cond_state = 'cond' + cond_count;
+    cond_count++;
     add_state_to_flow_chart(cond_state, 'condition', inner_statement);
     add_edge_to_flow_chart(null_state, cond_state);
-
-    //inner_statement = parse_for_inner_statement(inner_statement);
     let body_state = generate_chart(for_exp.body, true, args_to_decrement, cond_state + '(yes)');
     add_edge_to_flow_chart(body_state, null_state);
     clear_inner_block_args();
     return cond_state + '(no)';
 }
 
-function compReturnExp(return_exp, in_condition_block, args_to_decrement, prev_state){
+function compReturnExp(return_exp){
     let state_body = generate_code_string(return_exp.argument.loc);
     return 'return ' + state_body;
 }
@@ -265,7 +285,7 @@ function compVarDeclaratorExp(var_dec, in_condition_block, args_to_decrement){
     return result;
 }
 
-function compAssignmentExp(assignment_exp, in_condition_block, args_to_decrement, prev_state){
+function compAssignmentExp(assignment_exp, in_condition_block, args_to_decrement){
 
     let arg_name = assignment_exp.left.name;
     let new_val = get_updated_arg_value(arg_name, assignment_exp.right);
@@ -311,54 +331,6 @@ function compVarDeclarationExp(var_dec_exp, in_condition_block, args_to_decremen
     return dec_body;
 }
 
-function create_declarator_state(decs, in_condition_block, args_to_decrement, prev_state) {
-
-    let state_name = 'dec' + dec_count;
-    dec_count++;
-    let state_body = '';
-    for (let i = 0; i < decs.length; i++) {
-        for (let j = 0; j < decs[i].declarations.length; j++) {
-            let v_code = decs[i].declarations[j];
-            state_body += compVarDeclaratorExp(v_code, in_condition_block, args_to_decrement);
-            if(i < decs.length-1){
-                state_body += '\n';
-            }
-        }
-    }
-    add_state_to_flow_chart(state_name, 'operation', state_body);
-    add_edge_to_flow_chart(prev_state, state_name);
-    return state_name;
-}
-
-function get_var_decs_in_block_exp(block_exp) {
-    let decs = [];
-    for (let i = 0; i < block_exp.body.length; i++) {
-        let code = block_exp.body[i];
-        if (code.type === 'VariableDeclaration') {
-            decs.push(code);
-        }
-    }
-    return decs;
-}
-
-function get_settings(){
-    return {
-        'x': 100, 'y': 0,
-        'line-width': 4, 'line-length': 70,
-        'text-margin': 15,
-        'font-size': 14, 'font-color': 'black',
-        'line-color': 'black', 'element-color': 'black',
-        'fill': '',
-        'yes-text': 'T', 'no-text': 'F',
-        'arrow-end': 'block', 'scale': 1.1,
-        'symbols': { // style symbol types
-            'start': { 'font-color': 'black', 'element-color': 'green', 'fill': 'white', 'font-size': '0' },
-            'end': { 'class': 'end-element', 'fill': '#A8D18D', 'font-size': '20', 'font-color': '#A8D18D'}
-        },
-        'flowstate': { 'truePath': {'fill': '#A8D18D', 'font-size': 13} }
-    };
-}
-
 function compExpStatement(exp_statement, in_condition_block, args_to_decrement, prev_state){
     return generate_chart(exp_statement.expression, in_condition_block, args_to_decrement, prev_state);
 }
@@ -368,28 +340,17 @@ function compUpdateExpression(update_exp){
     let op = update_exp.operator;
     if(name in input_args){
         if(op === '++')
-            input_args[name] += 1;
+            input_args[name].value += 1;
         else
-            input_args[name] -= 1;
+            input_args[name].value -= 1;
     }
     if(name in global_args){
         if(op === '++')
-            global_args[name] += 1;
+            global_args[name][0] = ['' + (parseInt(global_args[name][0]) + 1)];
         else
-            global_args[name] -= 1;
+            global_args[name][0] = ['' + (parseInt(global_args[name][0]) - 1)];
     }
     return name + op + '\n';
-}
-
-function parse_for_inner_statement(inner_statement){
-    inner_statement = inner_statement.split(';'); //["let i=0", "i < y + 1 + x", "i = i+1"]
-    let parsed_statement = [];
-    inner_statement[0] = inner_statement[0].split('let')[1].trim(); // "i=0"
-    for (let i = 0; i < 3; i++) {
-        parsed_statement[i] = sub_equation(inner_statement[i]);
-    }
-
-    return parsed_statement.join('; ');
 }
 
 function clear_inner_block_args(args_to_decrement){
@@ -399,7 +360,6 @@ function clear_inner_block_args(args_to_decrement){
             local_arg_dict[arg_name].splice(local_arg_indices[arg_name], 1);
             local_arg_indices[arg_name]--;
         }
-    args_to_decrement = [];
 }
 
 function parse_global(condition, i) {
@@ -666,17 +626,17 @@ function generate_code_string(location){
     return rows[location.start.line-1].substring(location.start.column, location.end.column);
 }
 
-function make_space(n){
+/*function make_space(n){
     let space = '';
     for (let i = 0; i < n; i++) {
         space += ' ';
     }
     return space;
-}
+} */
 
 export{create_flow_chart, add_edge_to_flow_chart, add_merge_edge, parse_condition, add_state_to_flow_chart,
     comp_binary_expression, compVarDeclaratorExp, sub_equation, check_member_expression,
-    generate_code_string, compBlockStatement, parse_for_inner_statement, make_space, concat_array_member_if_not_local,
+    generate_code_string, compBlockStatement, concat_array_member_if_not_local,
     clear_inner_block_args, create_flowgraph_string, compIfExp, compElseIfExp, sub_exp_to_array, add_merge_to_flow_chart
     , compExpStatement, compWhileExp, get_flow_code, get_settings, clear_memory, compAssignmentExp, compReturnExp,
     generate_chart, evaluate_expression};
