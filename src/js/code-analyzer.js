@@ -1,4 +1,3 @@
-import * as esprima from 'esprima';
 
 // This json object will map between the different expressions of the original code.
 // Each expression in the original code has a different type and needs a specific parse method.
@@ -6,7 +5,6 @@ import * as esprima from 'esprima';
 let expression_to_function = {
     'IfStatement' : compIfExp,
     'ReturnStatement' : compReturnExp,
-    'Program' : compProgram,
     'ForStatement' : compForExp,
     'WhileStatement' : compWhileExp,
     'AssignmentExpression' : compAssignmentExp,
@@ -15,18 +13,9 @@ let expression_to_function = {
     'FunctionDeclaration' : compFuncDec,
     'ExpressionStatement' : compExpStatement,
     'UpdateExpression' : compUpdateExp,
-    //'CallExpression' : compCallExp
 };
 
 let input_code;
-
-const parseCode = (codeToParse) => {
-
-    let parsed_code = esprima.parseScript(codeToParse,{loc: true});
-    input_code = codeToParse;
-    let table = generate_parsed_table(parsed_code);
-    return [parsed_code, table];
-};
 
 function get_parsed_table(parsed_code, user_func){
 
@@ -51,17 +40,6 @@ function compUpdateExp(update_exp){
     };
 
     return [statement];
-}
-//function for computing program expression (the main object)
-function compProgram(program){
-
-    let statements = [];
-    for(let i = 0; i < program.body.length; i++) {
-        let exp = program.body[i];
-
-        statements = statements.concat(generate_parsed_table(exp));
-    }
-    return statements;
 }
 
 function compIfExp(if_exp){
@@ -235,4 +213,4 @@ function generate_code_string(location){
     return rows[location.start.line-1].substring(location.start.column, location.end.column);
 }
 
-export {parseCode, generate_parsed_table, get_parsed_table};
+export {generate_parsed_table, get_parsed_table};

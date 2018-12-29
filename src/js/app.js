@@ -9,32 +9,7 @@ $(document).ready(function () {
         let input_func = $('#codePlaceholder').val();
         let user_input_arguments = $('#inputArguments').val();
 
-        input_func =
-            'let g = 5;\n' +
-            'function foo(x,y,z){\n' +
-            '     let a = x;\n' +
-            '     let b = y;\n' +
-            '     g++;\n' +
-            '     g--;\n' +
-            '     if(a<b){\n' +
-            '          x++;\n' +
-            '          z--;\n' +
-            '     } else{\n' +
-            '            let c = a + b;\n' +
-            '     }\n' +
-            '     if( 2 < 1){\n' +
-            '          a++;\n' +
-            '     } else if(1 < 2){\n' +
-            '           if(a < 100){\n' +
-            '                a = a + 5;\n' +
-            '           }\n' +
-            '     }\n' +
-            '     return a + c;\n' +
-            '}';
-
         $('#diagram').text('');
-
-        user_input_arguments = '1, 2, 10';
 
         if(input_func !== ''){
             let chart = create_flow_chart(input_func, user_input_arguments);

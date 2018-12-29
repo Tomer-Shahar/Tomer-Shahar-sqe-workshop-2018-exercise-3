@@ -4,26 +4,15 @@
  *///
 
 import * as esprima from 'esprima';
-import * as substitutor from './symbol-substitution';
-import {generate_parsed_table, get_parsed_table, parseCode} from './code-analyzer';
+import {get_parsed_table} from './code-analyzer';
 
 let global_args;
 let input_args;
 let input_func;
 let local_arg_dict;
 
-const analyzed_code = (user_func, input_argument_values) => {
-    input_func = user_func;
-    let code_table = parseCode(input_func)[1];
-    input_args = extract_arguments(input_argument_values);
-    global_args = extract_global_arguments();
-    local_arg_dict = create_local_arg_dict();
-    return substitutor.perform_substitution(input_args, global_args, local_arg_dict, input_func, code_table);
-};
-
 function get_args(user_func, input_argument_values){
     input_func = user_func;
-    let code_table = parseCode(input_func)[1];
     input_args = extract_arguments(input_argument_values);
     global_args = extract_global_arguments();
     local_arg_dict = create_local_arg_dict();
@@ -189,9 +178,13 @@ let extraction_func_map = {
     'VariableDeclarator' : extract_var_declarator,
     'BinaryExpression' : extract_binary_exp,
     'ArrayExpression' : extract_array_exp,
-    'MemberExpression' : extract_member_exp
+    'MemberExpression' : extract_member_exp,
+    'UnaryExpression' : extract_unary_exp
 };
 
+function extract_unary_exp(expression){
+    return [expression.operator].concat(extract_assignment(expression.argument));
+}
 function extract_var_declaration(expression){
     return extract_assignment(expression.declarations[0]);
 }
@@ -208,8 +201,6 @@ function extract_literal(expression){
 function extract_var_declarator(expression){
     if(expression.init)
         return extract_assignment(expression.init);
-    else
-        return [null];
 }
 
 function extract_binary_exp(expression){
@@ -358,11 +349,5 @@ function check_first_char(arg){
     return null;
 }
 
-function clear_memory(){
-    global_args = {};
-    input_args = {};
-    input_func = '';
-}
-
-export{get_args, analyzed_code, extract_arg_values, extract_arguments, extract_arg_names, extract_arg_types, extract_global_arguments,
-    get_function_declaration, create_local_arg_dict, extract_assignment, generate_assignment_array, clear_memory};
+export{get_args, extract_arg_values, extract_arguments, extract_arg_names, extract_arg_types, extract_global_arguments,
+    get_function_declaration, create_local_arg_dict, extract_assignment, generate_assignment_array};

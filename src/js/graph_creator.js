@@ -20,7 +20,6 @@ let input_args;
 let global_args;
 let local_arg_dict;
 let local_arg_indices = {};
-//let true_path = [];
 let state_count = 1;
 let in_true_path;
 
@@ -110,10 +109,8 @@ function generate_else_body(res, args_to_decrement, last_state, if_exp, state_na
 }
 
 function compIfExp(if_exp, in_condition_block, args_to_decrement, prev_state){
-
     let condition = sub_equation(generate_code_string(if_exp.test.loc));
-    let res = evaluate_expression(condition);
-    let state_name = 'cond' + cond_count;
+    let res = evaluate_expression(condition);    let state_name = 'cond' + cond_count;
     cond_count++;
     if(!args_to_decrement)
         args_to_decrement = [];
@@ -198,47 +195,39 @@ function generate_loop_graph(curr_state_name, curr_state_body, prev_state, code,
     return {curr_state_name, curr_state_body, prev_state};
 }
 
-function generate_if_statement_graph(curr_state_name, curr_state_body, prev_state, code, in_condition_block, args_to_decrement, was_true) {
-    if(curr_state_body !== ''){
+function attach_curr_state_body(curr_state_body, curr_state_name, prev_state) {
+    if (curr_state_body !== '') {
         curr_state_name = 'op' + op_count;
         op_count++;
         add_state_to_flow_chart(curr_state_name, 'operation', curr_state_body);
         add_edge_to_flow_chart(prev_state, curr_state_name);
+        prev_state = curr_state_name;
     }
-    let last_state;
-    last_state = generate_chart(code, in_condition_block, args_to_decrement, curr_state_name);
-
-    curr_state_name = '';
-    prev_state = 'e' + (merge_count - 1);
-    in_true_path = was_true;
-    return {curr_state_name, prev_state, last_state};
+    return {curr_state_name, prev_state};
 }
 
 function compBlockStatement(block_exp, in_condition_block, args_to_decrement, prev_state){
-    let curr_state_name='';
-    let curr_state_body = '';
-    let was_true = in_true_path;
-
+    let curr_state_name='';    let curr_state_body = '';    let was_true = in_true_path;
     for(let i=0; i<block_exp.body.length; i++){
         let code = block_exp.body[i];
         if(not_condition_expression(code.type)){
-            curr_state_body += generate_chart(code, in_condition_block, args_to_decrement, prev_state);
-        }
+            curr_state_body += generate_chart(code, in_condition_block, args_to_decrement, prev_state);        }
         else if(code.type === 'IfStatement'){ //condition block. Add new state to the chart
-            const __ret = generate_if_statement_graph(curr_state_name, curr_state_body, prev_state, code, in_condition_block, args_to_decrement, was_true);
-            curr_state_name = __ret.curr_state_name;
-            prev_state = __ret.prev_state;
-            curr_state_body = '';
-            let last_state = __ret.last_state;
+            const __ret = attach_curr_state_body(curr_state_body, curr_state_name, prev_state);
+            curr_state_name = __ret.curr_state_name;            prev_state = __ret.prev_state;
+            let last_state = generate_chart(code, in_condition_block, args_to_decrement, prev_state);
+            curr_state_name = '';            prev_state = 'e' + (merge_count - 1);            in_true_path = was_true;            curr_state_body = '';
             if(in_condition_block)
-                return last_state;
-        }
+                return last_state;        }
         else{ //for or while
             const __ret = generate_loop_graph(curr_state_name, curr_state_body, prev_state, code, in_condition_block, args_to_decrement, was_true);
-            curr_state_name = __ret.curr_state_name;            curr_state_body = __ret.curr_state_body;            prev_state = __ret.prev_state;
-        }
+            curr_state_name = __ret.curr_state_name;            curr_state_body = __ret.curr_state_body;            prev_state = __ret.prev_state;        }
     }
     curr_state_name = flush_current_body(curr_state_body, curr_state_name, prev_state);
+    return return_state_name_if_in_cond_block(in_condition_block, curr_state_name);
+}
+
+function return_state_name_if_in_cond_block(in_condition_block, curr_state_name){
     if(in_condition_block)
         return curr_state_name;
 }
@@ -271,7 +260,7 @@ function compVarDeclaratorExp(var_dec, in_condition_block, args_to_decrement){
     let result = '';
     if(var_dec.init) {
         get_updated_arg_value(var_dec.id.name, var_dec.init);
-        result += var_dec.id.name + ' = ' + comp_binary_expression(var_dec.init).join(' ');
+        result += var_dec.id.name + ' = ' + generate_code_string(var_dec.init.loc); //comp_binary_expression(var_dec.init).join(' ');
     }
     else{
         result += var_dec.id.name + ' = ' + 'null';
@@ -382,10 +371,6 @@ function after_plus_or_minus_and_is_last(equation, i) {
     return (equation[i - 1] === '+' || equation[i - 1] === '-') && i === equation.length - 1;
 }
 
-function after_comparison_and_before_multiplication_or_division(equation, i) {
-    return (equation[i - 1] === '<' || equation[i - 1] === '<') && (equation[i + 1] !== '*' && equation[i + 1] !== '/');
-}
-
 function remove_zeroes(equation, new_equation, i) {
     if (equation.length === 1) { //equation: [ '0' ]
         new_equation = new_equation.concat(equation[i]);
@@ -395,8 +380,6 @@ function remove_zeroes(equation, new_equation, i) {
     else if (after_plus_or_minus_and_is_last(equation, i)) {
         new_equation.length = new_equation.length - 1; //remove last item ?
 
-    } else if (after_comparison_and_before_multiplication_or_division(equation, i)) {
-        i++;
     }
     else { //i = 0 --> i = 0
         new_equation = new_equation.concat(equation[i]);
@@ -448,7 +431,7 @@ function find_and_extract_array_val(name, idx) {
     if (name in global_args) {
         return global_args[name][0][idx];
     } else if (name in input_args) {
-        return  input_args[name][idx];
+        return  input_args[name].value[idx];
     } else {
         let local_idx = local_arg_indices[name];
         let local_array = local_arg_dict[name][local_idx].value[0];
@@ -499,7 +482,6 @@ let comp_exp_map = {
     'BinaryExpression' : extract_binary_exp,
     'ArrayExpression' : extract_array_exp,
     'MemberExpression' : extract_member_exp,
-    'AssignmentExpression' : extract_assignment_exp
 };
 
 function extract_identifier(expression){
@@ -534,10 +516,6 @@ function extract_array_exp(expression){
 
 function extract_member_exp(expression){
     return [expression.object.name + '[' + expression.property.value +']'];
-}
-
-function extract_assignment_exp(expression) {
-    return comp_binary_expression(expression.left).concat(['=']).concat(comp_binary_expression(expression.right));
 }
 
 function comp_binary_expression(expression){
@@ -638,5 +616,5 @@ export{create_flow_chart, add_edge_to_flow_chart, add_merge_edge, parse_conditio
     comp_binary_expression, compVarDeclaratorExp, sub_equation, check_member_expression,
     generate_code_string, compBlockStatement, concat_array_member_if_not_local,
     clear_inner_block_args, create_flowgraph_string, compIfExp, compElseIfExp, sub_exp_to_array, add_merge_to_flow_chart
-    , compExpStatement, compWhileExp, get_flow_code, get_settings, clear_memory, compAssignmentExp, compReturnExp,
+    , compExpStatement, compWhileExp, get_flow_code, clear_memory, compAssignmentExp, compReturnExp,
     generate_chart, evaluate_expression};
