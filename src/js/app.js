@@ -10,7 +10,6 @@ $(document).ready(function () {
         let user_input_arguments = $('#inputArguments').val();
 
         $('#diagram').text('');
-
         if(input_func !== ''){
             let chart = create_flow_chart(input_func, user_input_arguments);
             let settings = get_settings();
