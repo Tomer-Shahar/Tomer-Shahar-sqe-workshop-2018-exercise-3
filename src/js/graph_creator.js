@@ -103,7 +103,7 @@ function add_state_edge_and_merge(state_name, if_exp, prev_state) {
 function generate_else_body(res, args_to_decrement, last_state, if_exp, state_name) {
     in_true_path = !res; //condition was false, we'll enter the else-if or else.
     args_to_decrement = [];
-    last_state = generate_chart(if_exp.alternate, true, args_to_decrement, state_name + '(no)');
+    last_state = generate_chart(if_exp.alternate, true, args_to_decrement, state_name + '(no)'); //Should return a merge state
     clear_inner_block_args(args_to_decrement);
     add_merge_edge(last_state);
 }
@@ -114,9 +114,9 @@ function compIfExp(if_exp, in_condition_block, args_to_decrement, prev_state){
     cond_count++;
     if(!args_to_decrement)
         args_to_decrement = [];
-    add_state_edge_and_merge(state_name, if_exp, prev_state);
-    in_true_path = in_true_path && res;
+    add_state_edge_and_merge(state_name, if_exp, prev_state);    in_true_path = in_true_path && res;
     let last_state = generate_chart(if_exp.consequent, true, args_to_decrement, state_name + '(yes)' ); // inner if block
+    let merge_edge = 'e' + merge_count;
     add_merge_edge(last_state);
     check_if_can_clear_inner_args(in_condition_block, args_to_decrement);
     if(if_exp.alternate === null) { //Code just continues
@@ -126,7 +126,7 @@ function compIfExp(if_exp, in_condition_block, args_to_decrement, prev_state){
         compElseIfExp(if_exp.alternate, state_name + '(no)');    }
     else {
         generate_else_body(res, args_to_decrement, last_state, if_exp, state_name);    }
-    check_if_increment_merge_count(in_condition_block);    return state_name + '(no)';
+    check_if_increment_merge_count(in_condition_block);    return merge_edge;
 }
 
 function compElseIfExp(else_if_exp, prev_state){
@@ -164,7 +164,7 @@ function compWhileExp(while_exp, in_condition_block, args_to_decrement, prev_sta
     cond_count++;
     in_true_path = in_true_path && res;
     let body_state = generate_chart(while_exp.body, true, args_to_decrement, cond_state + '(yes)');
-    add_edge_to_flow_chart(body_state, null_state);
+    add_edge_to_flow_chart(body_state, null_state); // Should return z = c
     clear_inner_block_args();
     return cond_state + '(no)';
 }
@@ -206,6 +206,10 @@ function attach_curr_state_body(curr_state_body, curr_state_name, prev_state) {
     return {curr_state_name, prev_state};
 }
 
+function in_block_and_last_statement(in_condition_block, i, block_exp) {
+    return in_condition_block && i === block_exp.body.length - 1;
+}
+
 function compBlockStatement(block_exp, in_condition_block, args_to_decrement, prev_state){
     let curr_state_name='';    let curr_state_body = '';    let was_true = in_true_path;
     for(let i=0; i<block_exp.body.length; i++){
@@ -216,10 +220,10 @@ function compBlockStatement(block_exp, in_condition_block, args_to_decrement, pr
             const __ret = attach_curr_state_body(curr_state_body, curr_state_name, prev_state);
             curr_state_name = __ret.curr_state_name;            prev_state = __ret.prev_state;
             let last_state = generate_chart(code, in_condition_block, args_to_decrement, prev_state);
-            curr_state_name = '';            prev_state = 'e' + (merge_count - 1);            in_true_path = was_true;            curr_state_body = '';
-            if(in_condition_block)
-                return last_state;        }
-        else{ //for or while
+            curr_state_name = '';            prev_state = last_state;            in_true_path = was_true;            curr_state_body = '';
+            if(in_block_and_last_statement(in_condition_block, i, block_exp))
+                return last_state;
+        }else{ //for or while
             const __ret = generate_loop_graph(curr_state_name, curr_state_body, prev_state, code, in_condition_block, args_to_decrement, was_true);
             curr_state_name = __ret.curr_state_name;            curr_state_body = __ret.curr_state_body;            prev_state = __ret.prev_state;        }
     }
