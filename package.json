@@ -21,13 +21,8 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
-        "bootstrap": "^4.2.1",
-        "esgraph": "^0.3.0",
         "esprima": "^4.0.0",
-        "flowchart.js": "^1.11.3",
-        "jquery": "^3.3.1",
-        "npm": "^6.5.0",
-        "vis": "^4.21.0"
+        "jquery": "^3.3.1"
     },
     "devDependencies": {
         "cross-env": "^5.2.0",
